@@ -1,0 +1,61 @@
+
+#### CRAM packages up to executing plans in a light-weight simulation mode. ####
+####                                                                        ####
+#### Feel free to comment out sections you will not need.                   ####
+#### Keep in mind that each section depends on all the previous ones.       ####
+
+######### Core: ##############
+- git:
+    local-name: cram_3rdparty
+    uri: https://github.com/cram2/cram_3rdparty.git
+- git:
+    local-name: cram_core
+    uri: https://github.com/cram2/cram_core.git
+    version: cram4
+
+######### Plans and high-level interfaces: ###############
+- git:
+    local-name: roslisp_common
+    uri: https://github.com/ros/roslisp_common.git
+- git:
+    local-name: cram_common
+    uri: https://github.com/cram2/cram_common.git
+    version: cram4
+
+######### CRAM KNOWROB interface ###############
+- git:
+    local-name: cram_json_prolog
+    uri: https://github.com/cram2/cram_json_prolog.git
+- git:
+    local-name: cram_knowrob
+    uri: https://github.com/cram2/cram_knowrob.git
+    version: cram4
+
+####### Belief state representation and geometric reasoning: #############
+- git:
+    local-name: cram_3d_world
+    uri: https://github.com/cram2/cram_3d_world.git
+    version: cram4
+
+########### PR2-specific code: ###########
+# (for the real robot and light-weight simulation mode)
+- git:
+    local-name: giskard_msgs
+    uri: https://github.com/SemRoCo/giskard_msgs.git
+- git:
+    local-name: cram_pr2
+    uri: https://github.com/cram2/cram_pr2.git
+    version: cram4
+- git:
+    local-name: cram_projection_demos
+    uri: https://github.com/cram2/cram_projection_demos.git
+    version: cram4
+
+############ We recommend also installing the tutorials: ###########
+- git:
+    local-name: roslisp_tutorials
+    uri: https://github.com/code-iai/roslisp_tutorials.git
+- git:
+    local-name: cram_tutorials
+    uri: https://github.com/cram2/cram_tutorials.git
+    version: cram4
