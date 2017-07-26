@@ -29,7 +29,7 @@
 
 (in-package :plt)
 
-(defun init-projection ()
+(defun init-environment ()
   (def-fact-group costmap-metadata ()
     (<- (location-costmap:costmap-size 12 12))
     (<- (location-costmap:costmap-origin -6 -6))
@@ -51,7 +51,7 @@
 
   (setf prolog:*break-on-lisp-errors* t))
 
-(roslisp-utilities:register-ros-init-function init-projection)
+(roslisp-utilities:register-ros-init-function init-environment)
 
 ;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
 ;;   (btr:add-costmap-function-object map))
