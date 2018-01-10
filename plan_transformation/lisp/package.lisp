@@ -32,7 +32,14 @@
 
 (defpackage plan-transformation
   (:nicknames :plt)
-  (:use #:cram-prolog
-        #:common-lisp)
+  (:use :cram-prolog
+        :common-lisp)
+  (:import-from #:cpl
+                #:def-cram-function #:def-top-level-cram-function #:plan-failure)
+  (:import-from #:cpl-impl
+                #:replace-task-code)
+  ;; (:import-from #:cpl-impl
+  ;;               #:plan-failure/get-code-path)
   (:export
-   #:init-environment))
+   ;; #:init-environment
+   ))

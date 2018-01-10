@@ -42,7 +42,7 @@
     (<- (location-costmap:costmap-reach-minimal-distance 0.2)))
 
   (setf cram-bullet-reasoning-belief-state:*robot-parameter* "robot_description")
-  (setf cram-bullet-reasoning-belief-state:*kitchen-parameter* "no_urdf_for_kitchen")
+  (setf cram-bullet-reasoning-belief-state:*kitchen-parameter* "kitchen_description")
 
   (sem-map:get-semantic-map)
 
@@ -53,6 +53,10 @@
   (setf prolog:*break-on-lisp-errors* t))
 
 (roslisp-utilities:register-ros-init-function init-environment)
+
+(defun reset (&optional (task-tree-name 'tt))
+  (roslisp-utilities:startup-ros)
+  (cpl-impl::remove-top-level-task-tree task-tree-name))
 
 ;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
 ;;   (btr:add-costmap-function-object map))

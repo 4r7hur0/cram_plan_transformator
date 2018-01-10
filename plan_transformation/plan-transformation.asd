@@ -40,13 +40,14 @@
                cl-tf
                cram-tf
 
-               cram-language
+               
                cram-executive
                cram-designators
                cram-prolog
                cram-projection
                cram-occasions-events
-
+               
+               
                cram-common-failures
 
                cram-physics-utils ; for reading "package://" paths
@@ -65,10 +66,12 @@
                cram-location-costmap
 
                cram-pr2-pick-place-plans
-               cram-pr2-description)
+               cram-pr2-description
+               cram-language)
   :components
   ((:module "lisp"
     :components
     ((:file "package")
      (:file "setup" :depends-on ("package"))
-     (:file "reader" :depends-on ("package"))))))
+     (:file "reader" :depends-on ("package"))
+     (:file "tutorial" :depends-on ("package"))))))
