@@ -3,14 +3,16 @@
 - git:
     local-name: iai_common_msgs
     uri: https://github.com/code-iai/iai_common_msgs.git
-    version: master
+    version: c06282a009fe77b4f334e7bbe63e3fdd5eee665d
 - git:
     local-name: stacks/knowrob
     uri: https://github.com/knowrob/knowrob.git
-    version: master
+    version: ddc927b64c509eae05e35710384210b77cf621cc
 - git:
     local-name: robot_state_chain_publisher
     uri: https://github.com/code-iai/robot_state_chain_publisher.git
+    version: e6b414d0d7f54aedb11d1c648b60f1779a94131a
 - git:
     local-name: iai_maps
     uri: https://github.com/code-iai/iai_maps.git
+    version: bfb3d213219ffa4279883f707e412105479e9bf3
