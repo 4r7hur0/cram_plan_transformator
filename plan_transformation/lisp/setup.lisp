@@ -55,7 +55,8 @@
 (roslisp-utilities:register-ros-init-function init-environment)
 
 (defun reset (&optional (task-tree-name 'tt))
-  (roslisp-utilities:startup-ros)
+  
+  (cram-occasions-events:clear-belief)
   (cpl-impl::remove-top-level-task-tree task-tree-name))
 
 ;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
