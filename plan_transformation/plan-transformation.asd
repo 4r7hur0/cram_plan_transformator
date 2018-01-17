@@ -67,11 +67,16 @@
 
                cram-pr2-pick-place-plans
                cram-pr2-description
-               cram-language)
+               cram-language
+
+               cram-execution-trace)
   :components
   ((:module "lisp"
     :components
     ((:file "package")
+     (:file "poses" :depends-on ("package"))
+     (:file "utils" :depends-on ("package"))
      (:file "setup" :depends-on ("package"))
      (:file "reader" :depends-on ("package"))
-     (:file "tutorial" :depends-on ("package"))))))
+     (:file "plans" :depends-on ("package" "poses" "utils"))
+     (:file "top-level-plans" :depends-on ("package" "poses" "utils" "plans"))))))

@@ -54,9 +54,23 @@
 
 (roslisp-utilities:register-ros-init-function init-environment)
 
-(defun reset (&optional (task-tree-name 'tt))
-  
-  (cram-occasions-events:clear-belief)
+(defun reset (&optional (task-tree-name 'tt2))
+  (btr-utils:kill-object 'CRAM-PR2-DESCRIPTION:PR2)
+  (btr-utils:kill-object 'bottle-1)
+  (btr-utils:kill-object 'bottle-3)
+  (btr-utils:kill-object 'bottle-4)
+  (let ((robot-urdf
+                   (cl-urdf:parse-urdf
+                    (roslisp:get-param "robot_description"))))
+             (prolog:prolog
+              `(and (btr:bullet-world ?world)
+                    (cram-robot-interfaces:robot ?robot)
+                    (assert (btr:object ?world :urdf ?robot ((0 0 0) (0 0 0 1)) :urdf ,robot-urdf))
+                    (cram-robot-interfaces:robot-arms-parking-joint-states ?robot ?joint-states)
+                    (assert (btr:joint-state ?world ?robot ?joint-states))
+                    (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0))))
+                    )))
+  ;; (cram-occasions-events:clear-belief)
   (cpl-impl::remove-top-level-task-tree task-tree-name))
 
 ;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
