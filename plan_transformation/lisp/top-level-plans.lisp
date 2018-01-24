@@ -31,17 +31,17 @@
 (in-package :plt)
 
 (defun tl-replacement-example ()
-  (replace-task-code (format t "wololo") (lambda () (format t "wololo"))
+  (replace-task-code (format t "test") (lambda () (format t "test"))
                      '((cpl:top-level tt2))
                      (cpl:get-top-level-task-tree 'tt2)))
 
 
 (def-top-level-cram-function tt2 ()
-  (spawn-two-bottles 3)
+  (spawn-two-bottles 2)
   (proj:with-projection-environment pr2-proj::pr2-bullet-projection-environment
-    ;;(bring-one-by-one)
+    (bring-one-by-one)
     ;; (prepare-pr2)
-    (bring-at-once)
+    ;;(bring-at-once)
     ))
 
 (def-top-level-cram-function tt ()

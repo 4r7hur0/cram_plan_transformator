@@ -71,7 +71,8 @@
                     (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0))))
                     )))
   ;; (cram-occasions-events:clear-belief)
-  (cpl-impl::remove-top-level-task-tree task-tree-name))
+  (when task-tree-name
+    (cpl-impl::remove-top-level-task-tree task-tree-name)))
 
 ;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
 ;;   (btr:add-costmap-function-object map))

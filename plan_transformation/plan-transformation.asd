@@ -79,4 +79,5 @@
      (:file "setup" :depends-on ("package"))
      (:file "reader" :depends-on ("package"))
      (:file "plans" :depends-on ("package" "poses" "utils"))
-     (:file "top-level-plans" :depends-on ("package" "poses" "utils" "plans"))))))
+     (:file "top-level-plans" :depends-on ("package" "poses" "utils" "plans"))
+     (:file "transformation-rules" :depends-on ("package" "poses" "utils" "plans" "top-level-plans"))))))

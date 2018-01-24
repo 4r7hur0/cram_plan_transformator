@@ -60,6 +60,9 @@
                   (directory (physics-utils:parse-uri
                               (format nil "package://~a/resource/*.*" ros-package))))))
 
+(defun get-tltt (tltt-name)
+  (cpl:get-top-level-task-tree tltt-name))
+
 (defun available-arms ()
   (mapcar 'cdr
           (let ((link-list '(("l_wrist_roll_link" . :left) ("r_wrist_roll_link" . :right))))
@@ -73,3 +76,23 @@
            (append (list (first (cpl:task-tree-node-path node)))
                    (list (mapcar (lambda (child-par) (get-children (cdr child-par)))
                                  (cpl:task-tree-node-children node))))))
+
+(defun find-task (task-name node)
+  (let ((matches '()))
+    (if (and node (equal task-name (first (cpl:task-tree-node-path node))))
+             (setf matches (append matches (list node)))
+             (setf matches (append matches (map 'list (lambda (child-par) (find-task task-name (cdr child-par)))
+                                  (cpl:task-tree-node-children node)))))
+    (alexandria:flatten matches)))
+
+(defun get-robot-position (node)
+  (first (cpl-impl:code-parameters (cpl:task-tree-node-code (cdr (find-if (lambda (entry) (equal (car entry) '(navigate-to)))
+           (cpl:task-tree-node-children (cpl:task-tree-node-parent (cpl:task-tree-node-parent node)))))))))
+
+
+(defun reset-fast ()
+  (reset)
+  (tt2)
+  (reset nil)
+  (apply-rules)
+  (tt2))
