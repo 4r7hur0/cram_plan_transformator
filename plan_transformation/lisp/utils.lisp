@@ -96,3 +96,20 @@
   (reset nil)
   (apply-rules)
   (tt2))
+
+
+(defun get-location-of-transport-action ()
+  (desig:desig-prop-value 
+   (cut:var-value '?desig 
+                  (car (cut:force-ll 
+                        (prolog:prolog
+                         `(and
+                           (task-specific-action :top-level ((demo-random)) 
+                                                 :transporting ?task ?desig)))))) :location))
+
+(defun test ()
+  (cet:enable-fluent-tracing)
+  (cpl-impl::remove-top-level-task-tree :top-level)
+
+  (pr2-proj:with-simulated-robot
+    (demo-random nil)))

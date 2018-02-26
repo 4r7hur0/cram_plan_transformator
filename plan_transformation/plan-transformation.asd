@@ -69,7 +69,9 @@
                cram-pr2-description
                cram-language
 
-               cram-execution-trace)
+               cram-execution-trace
+
+               cram-pr2-pick-place-demo)
   :components
   ((:module "lisp"
     :components
