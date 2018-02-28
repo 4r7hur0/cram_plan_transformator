@@ -36,10 +36,49 @@
    'cram-bullet-reasoning:urdf))
 
 (defun move-kitchen-joint (&key (joint-name "iai_fridge_door_joint")
-                             (joint-angle 0.2d0) (kitchen-name :kitchen))
+                             (joint-angle 2.5d0) (kitchen-name :kitchen))
   (btr:set-robot-state-from-joints
    `((,joint-name  ,joint-angle))
    (btr:object btr:*current-bullet-world* kitchen-name)))
+
+(defun check-visibility (&optional (?type :cup))
+  (pr2-proj:with-projected-robot
+          (perform
+           (an action
+               (type detecting)
+               (object (an object (type ?type)))))))
+
+(defun spawn-cup-in-fridge ()
+  (btr-utils:spawn-object :cup-1 :cup :pose '((1.35 0.6 0.9) (0 0 0 1)))
+  (setf (btr::mass (car (btr:rigid-bodies (btr:object btr:*current-bullet-world* :cup-1)))) 0.0)
+  (btr-utils:move-object :cup-1 (cdr (assoc :cup *object-spawning-in-container-poses*))))
+
+(defun fetch-by-coord ()
+  (pr2-proj:with-simulated-robot
+        (let* ((?obj (an object
+                        (type cup)))
+              (?pose (cl-transforms-stamped:make-pose-stamped
+                        "base_footprint" 0.0
+                        (cl-transforms:make-3d-vector 1.3 -0.6 1.2)
+                        (cl-transforms:make-identity-rotation)))
+              (?loc (a location
+                       (pose ?pose))))
+        (exe:perform (desig:an action
+                               (type fetching)
+                               (object ?obj)
+                               (location ?loc))))))
+
+(defun move-just-the-gripper ()
+  (pr2-proj:with-simulated-robot
+        (let* ((?pose (cl-transforms-stamped:make-pose-stamped
+                        "base_footprint" 0.0
+                        (cl-transforms:make-3d-vector 0.6 0.2 1.2)
+                        (cl-transforms:make-identity-rotation)))
+               (?loc (a location
+                        (pose ?pose))))
+          (perform (a motion
+                      (type moving-tcp)
+                      (right-target ?loc))))))
 
 (defun add-objects-to-mesh-list (&optional (ros-package "cram_bullet_world_tutorial"))
   (mapcar (lambda (object-filename-and-object-extension)

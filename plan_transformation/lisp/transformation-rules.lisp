@@ -45,11 +45,18 @@
    (desig:desig-prop-value 
     (cut:var-value '?desig task) :location)))
 
-(defun tasks-with-matching-location (&optional (top-level-name :top-level))
+(defun get-location-from-task (task)
+  (desig:desig-prop-value 
+   (cut:var-value '?desig task) :located-at)))
+
+(defun location-desig-nearby (desig-1 desig-2 &optional (threshold 0.2))
+  (> threshold (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
+                             (cl-tf:origin (desig-prop-value desig-2 :pose)))))
+
+(defun tasks-with-matching-location (&optional (top-level-name :top-level) (action-type :transporting))
   (let* ((transporting-tasks
            (cut:force-ll
-            (prolog:prolog `(task-transporting-action ,top-level-name ((demo-random))
-                                                      ?task ?desig))))
+            (prolog:prolog `(task-specific-action ,top-level-name ((demo-random)) ,action-type ?task ?desig))))
         (match)
         (matching-pairs (list)))
     (loop while transporting-tasks
@@ -65,20 +72,6 @@
    (car (cut:force-ll 
          (prolog:prolog `(and
                           (task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))) '?desig))
-
-(defun pose->btr-pose (pose)
-  (declare (type cl-tf:pose pose))
-  (let* ((origin (cl-tf:origin pose))
-         (orientation (cl-tf:orientation pose))
-         (x (cl-tf:x origin))
-         (y (cl-tf:y origin))
-         (z (cl-tf:z origin))
-         (ow (cl-tf:w orientation))
-         (ox (cl-tf:x orientation))
-         (oy (cl-tf:y orientation))
-         (oz (cl-tf:z orientation)))
-    (list (list x y z) (list ox oy oz ow))))
-
 
 (defun test-transporting-query ()
   (cut:force-ll (prolog:prolog
@@ -191,8 +184,65 @@
                                        #'(lambda (&rest desig)
                                            (declare (ignore desig)))
                                        (first paths)
-                                       (cpl-impl::get-top-level-task-tree top-level-name))))))))
+                                       (cpl-impl::get-top-level-task-tree top-level-name)))))))
 
+(defun tasks-with-nearby-location (&optional (top-level-name :top-level) (action-type :transporting-from-container))
+  (let* ((transporting-tasks
+           (cut:force-ll
+            (prolog:prolog `(task-specific-action ,top-level-name ((demo-random)) ,action-type ?task ?desig))))
+        (match)
+        (matching-pairs (list)))
+    (loop while transporting-tasks
+          do (when (setf match
+                         (find-if (lambda (x) (location-desig-nearby
+                                               (desig:desig-prop-value 
+                                                (cut:var-value '?desig (car transporting-tasks)) :located-at)
+                                               (desig:desig-prop-value 
+                                                (cut:var-value '?desig x) :located-at)))
+                                  (cdr transporting-tasks)))
+               (push (list (car transporting-tasks) match) matching-pairs))
+             (setf transporting-tasks (remove match (cdr transporting-tasks))))
+    matching-pairs))
 
+(defun environment-rule (&optional (top-level-name :top-level))
+  (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))
+         (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
+         (paths (mapcar #'cpl:task-tree-node-path tasks))
+         (first-closing-path (cpl:task-tree-node-path
+                              (alexandria:assoc-value
+                               (cut:lazy-car
+                                (prolog:prolog `(task-specific-action ,top-level-name
+                                                                      ,(car (last paths))
+                                                                      :closing-container
+                                                                      ?task ?_))) '?task)))
+         (last-opening (cut:lazy-car
+                        (prolog:prolog `(task-specific-action ,top-level-name
+                                                              ,(car paths)
+                                                              :accessing-container
+                                                              ?task ?desig))))
+         (last-opening-path (cpl:task-tree-node-path (alexandria:assoc-value last-opening '?task)))
+         (last-opening-action (alexandria:assoc-value last-opening '?desig))
+         (?opening-location (desig:desig-prop-value last-opening-action :location)))
+    
 
-(defun environment-rule (&optional (top-level-name :top-level)))
+    ;; dont close the door, just enable collisions
+    (cpl-impl::replace-task-code '(CONTAINER-FIRST-CLOSING-TRANSFORM)
+                                 #'(lambda (&rest desig)
+                                     (declare (ignore desig))
+                                     (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* NIL))
+                                 first-closing-path
+                                 (cpl-impl::get-top-level-task-tree top-level-name))
+
+    ;; dont open, just navigate and disable collisions
+    (cpl-impl::replace-task-code '(CONTAINER-LAST-OPENING-TRANSFORM)
+                                 #'(lambda (&rest desig)
+                                     (declare (ignore desig))
+                                     (exe:perform
+                                      (desig:an action
+                                                (type navigating)
+                                                (location ?opening-location)))
+                                     (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* T))
+                                 last-opening-path
+                                 (cpl-impl::get-top-level-task-tree top-level-name))
+
+   first-closing-path ))
