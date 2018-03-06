@@ -30,6 +30,83 @@
 
 (in-package :plt)
 
+(defun tasks-with-nearby-location (&optional (top-level-name :top-level) (action-type :transporting-from-container))
+  (let* ((transporting-tasks
+           (cut:force-ll
+            (prolog:prolog `(task-specific-action ,top-level-name ((demo-fridge)) ,action-type ?task ?desig))))
+        (match)
+        (matching-pairs (list)))
+    (loop while transporting-tasks
+          do (when (setf match
+                         (find-if (lambda (x) (location-desig-nearby
+                                               (desig:desig-prop-value 
+                                                (cut:var-value '?desig (car transporting-tasks)) :located-at)
+                                               (desig:desig-prop-value 
+                                                (cut:var-value '?desig x) :located-at)))
+                                  (cdr transporting-tasks)))
+               (push (list (car transporting-tasks) match) matching-pairs))
+             (setf transporting-tasks (remove match (cdr transporting-tasks))))
+    matching-pairs))
+
+(defun tray-transporting-action ()
+  (let* ((?tray-obj (desig:an object
+                             (type :tray)))
+        (?fetching-location
+          (desig:a location
+                   (on "CounterTop")
+                   (name "iai_kitchen_sink_area_counter_top")))
+        (?placing-target-pose
+          (cl-transforms-stamped:pose->pose-stamped
+           "map" 0.0
+           (cram-bullet-reasoning:ensure-pose
+            '((-0.75 1.85 0.85) (0 0 1 0)))))
+        (?delivering-location
+          (desig:a location
+                   (pose ?placing-target-pose)))
+        (action (desig:an action
+                          (type transporting)
+                          (object ?tray-obj)
+                          (arm :right)
+                          (location ?fetching-location)
+                          (target ?delivering-location)
+                          (retract-arms nil))))
+    action))
+
+(defun get-location-from-task (task)
+  (desig:description
+   (desig:desig-prop-value 
+    (cut:var-value '?desig task) :location)))
+
+(defun location-desig-nearby (desig-1 desig-2 &optional (threshold 0.2))
+  (> threshold (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
+                             (cl-tf:origin (desig-prop-value desig-2 :pose)))))
+
+(defun location-desig-dist (desig-1 desig-2)
+  (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
+                (cl-tf:origin (desig-prop-value desig-2 :pose))))
+
+(defun tasks-with-matching-location (&optional (path '((demo-random)))
+                                       (top-level-name :top-level)
+                                       (action-type :transporting))
+  (let* ((transporting-tasks
+           (cut:force-ll
+            (prolog:prolog `(task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))
+        (match)
+        (matching-pairs (list)))
+    (loop while transporting-tasks
+          do (when (setf match
+                         (find-if (lambda (x) (equalp (get-location-from-task (car transporting-tasks))
+                                                      (get-location-from-task x))) (cdr transporting-tasks)))
+               (push (list (car transporting-tasks) match) matching-pairs))
+             (setf transporting-tasks (remove match (cdr transporting-tasks))))
+    matching-pairs))
+
+(defun action-designator-under-path (path action-type &optional (top-level-name :top-level))
+  (alexandria:assoc-value
+   (car (cut:force-ll 
+         (prolog:prolog `(and
+                          (task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))) '?desig))
+
 (defun get-kitchen-urdf ()
   (slot-value
    (btr:object btr:*current-bullet-world* :kitchen)

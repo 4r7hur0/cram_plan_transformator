@@ -76,7 +76,6 @@
                
                cram-pr2-fetch-deliver-plans
                cram-execution-trace
-               cram-pr2-pick-place-demo
                )
   :components
   ((:module "lisp"

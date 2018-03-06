@@ -30,119 +30,60 @@
 
 (in-package :plt)
 
-(defun apply-rules (&optional (tltt (cpl:get-top-level-task-tree 'tt2)))
-  (apply-double-grab-dumb tltt))
+(defun check-rules (&optional (top-level-name :top-level))
+  (let ((both-hands-rule-bindings)
+        ;; (stacking-rule-bindings)
+        ;; (environment-rule-bindings)
+        )
+    (format T "Checking for applicable rules.~%")
+    (format T "Investigate both-hands-predicate...~%")
+    (when (setf both-hands-rule-bindings
+                (prolog '(task-transporting-siblings
+                          :top-level
+                          ((demo-stacking))
+                          0.5
+                          ?task-1
+                          ?path-1
+                          ?task-2
+                          ?path-2
+                          ?fetch-desig
+                          ?deliver-desig)))
+      (format T "Function ~a is applicable!~%" #'both-hands-transporting-rule)
+      (both-hands-transporting-rule (cut:lazy-car both-hands-rule-bindings)
+                                    top-level-name))))
 
-(defun apply-double-grab-dumb (tltt)
-  (let ((pick-list (find-task '(cram-mobile-pick-place-plans:pick-up) tltt)))
-    (if (equal (get-robot-position (first pick-list)) (get-robot-position (second pick-list)))
-        (replace-task-code '(BRING-AT-ONCE) #'bring-at-once
-                           '((BRING-ONE-BY-ONE) (CRAM-LANGUAGE-IMPLEMENTATION:TOP-LEVEL TT2)) tltt)
-        (warn "rule not applicable"))))
+(defun both-hands-transporting-rule (bindings &optional (top-level-name :top-level))
+  (cut:with-vars-bound
+      (?path-1 ?path-2 ?fetch-desig ?deliver-desig)
+      bindings
+    (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-1)
+                                 #'(lambda (&rest desig)
+                                     (declare (ignore desig))
+                                     (exe:perform ?fetch-desig))
+                                 ?path-1
+                                 (cpl-impl::get-top-level-task-tree top-level-name))
+    (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-2)
+                                 #'(lambda (&rest desig)
+                                     (exe:perform (car desig))
+                                     (exe:perform ?deliver-desig))
+                                 ?path-2
+                                 (cpl-impl::get-top-level-task-tree top-level-name))))
 
-(defun get-location-from-task (task)
-  (desig:description
-   (desig:desig-prop-value 
-    (cut:var-value '?desig task) :location)))
 
-;; (defun get-location-from-task (task)
-;;   (desig:desig-prop-value 
-;;    (cut:var-value '?desig task) :located-at))
-
-(defun location-desig-nearby (desig-1 desig-2 &optional (threshold 0.2))
-  (> threshold (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
-                             (cl-tf:origin (desig-prop-value desig-2 :pose)))))
-
-(defun tasks-with-matching-location (&optional (top-level-name :top-level) (action-type :transporting))
-  (let* ((transporting-tasks
-           (cut:force-ll
-            (prolog:prolog `(task-specific-action ,top-level-name ((demo-random)) ,action-type ?task ?desig))))
-        (match)
-        (matching-pairs (list)))
-    (loop while transporting-tasks
-          do (when (setf match
-                         (find-if (lambda (x) (equalp (get-location-from-task (car transporting-tasks))
-                                                      (get-location-from-task x))) (cdr transporting-tasks)))
-               (push (list (car transporting-tasks) match) matching-pairs))
-             (setf transporting-tasks (remove match (cdr transporting-tasks))))
-    matching-pairs))
-
-(defun action-designator-under-path (path action-type &optional (top-level-name :top-level))
-  (alexandria:assoc-value
-   (car (cut:force-ll 
-         (prolog:prolog `(and
-                          (task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))) '?desig))
-
-(defun test-transporting-query ()
-  (cut:force-ll (prolog:prolog
-       `(and
-         (task-similar-transporting-action :top-level ((demo-random)) ?other ?loc)))))
-
-(defun both-hands-transporting-rule (&optional (top-level-name :top-level))
-  (let* ((transporting-tasks
-           (cut:force-ll
-            (prolog:prolog
-             `(task-specific-action ,top-level-name ((demo-random))
-                                    :transporting ?task ?desig))))
-        (match)
-        (matching-pairs (list)))
-    (loop while transporting-tasks
-          do (when (setf match
-                         (find-if (lambda (x) (equalp (get-location-from-task (car transporting-tasks))
-                                                      (get-location-from-task x))) (cdr transporting-tasks)))
-               (push (list (car transporting-tasks) match) matching-pairs))
-             (setf transporting-tasks (remove match (cdr transporting-tasks))))
-    (let* ((tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
-           (paths (mapcar #'cpl:task-tree-node-path tasks))
-           (first-fetching-desig (action-designator-under-path (cadr paths) :fetching top-level-name))
-           (first-delivery-desig (action-designator-under-path (cadr paths) :delivering top-level-name)))
-      (cpl-impl::replace-task-code '(TRANSFORM1)
-                                   #'(lambda (&rest desig)
-                                       (declare (ignore desig))
-                                       (exe:perform first-fetching-desig))
-                                   (cadr paths) (cpl-impl::get-top-level-task-tree top-level-name))
-      (cpl-impl::replace-task-code '(TRANSFORM2)
-                                   #'(lambda (&rest desig)
-                                       (exe:perform (car desig))
-                                       (exe:perform first-delivery-desig))
-                                   (car paths) (cpl-impl::get-top-level-task-tree top-level-name)))))
-
-(defun tray-transporting-action ()
-  (let* ((?tray-obj (desig:an object
-                             (type :tray)))
-        (?fetching-location
-          (desig:a location
-                   (on "CounterTop")
-                   (name "iai_kitchen_sink_area_counter_top")))
-        (?placing-target-pose
-          (cl-transforms-stamped:pose->pose-stamped
-           "map" 0.0
-           (cram-bullet-reasoning:ensure-pose
-            '((-0.75 1.85 0.85) (0 0 1 0)))))
-        (?delivering-location
-          (desig:a location
-                   (pose ?placing-target-pose)))
-        (action (desig:an action
-                          (type transporting)
-                          (object ?tray-obj)
-                          (arm :right)
-                          (location ?fetching-location)
-                          (target ?delivering-location)
-                          (retract-arms nil))))
-    action))
   
 (defun stacking-rule (&optional (top-level-name :top-level))
-  (let* ((matching-pairs (tasks-with-matching-location top-level-name))
+  (let* ((matching-pairs (tasks-with-matching-location '((demo-stacking)) top-level-name))
          (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
          (paths (mapcar #'cpl:task-tree-node-path tasks))
          (tray-poses '(((1.3469725290934245d0 0.1027636495729287465d0 0.9610342152913412d0)
                         (0 0 1 0))
                        ((1.34 0.0 1.0)
-                        (0 0 0.7071 0.7071))
+                        (0 0 1 0);; (0 0 -0.7071 0.7071)
+                        )
                        ((1.34 0.0 0.96)
                         (0 0 1 0))))
          (tray-action (tray-transporting-action)))
-
+    (print "ready pairs")
     (labels ((change-loc-to-tray (action-desig)
                (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
                                   "map" 0.0
@@ -155,7 +96,7 @@
                                         ?desig-cpy)))
              (btr-obj (name)
                (btr:object btr:*current-bullet-world* name)))
-      (let ((transports-list
+      (let* ((transports-list
               (map 'list (lambda (path)()
                            (let* ((fetch-desig
                                     (action-designator-under-path path :fetching top-level-name))
@@ -175,34 +116,17 @@
                  (exe:perform tray-action)
                  (btr::detach-all-items (btr-obj :tray-1))))
 
-          (cpl-impl::replace-task-code '(TRANSFORM1)
+          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
                                        #'trans-fun
                                        (second paths)
                                        (cpl-impl::get-top-level-task-tree top-level-name))
 
-          (cpl-impl::replace-task-code '(TRANSFORM2)
+          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
                                        #'(lambda (&rest desig)
                                            (declare (ignore desig)))
                                        (first paths)
-                                       (cpl-impl::get-top-level-task-tree top-level-name)))))))
-
-(defun tasks-with-nearby-location (&optional (top-level-name :top-level) (action-type :transporting-from-container))
-  (let* ((transporting-tasks
-           (cut:force-ll
-            (prolog:prolog `(task-specific-action ,top-level-name ((demo-fridge)) ,action-type ?task ?desig))))
-        (match)
-        (matching-pairs (list)))
-    (loop while transporting-tasks
-          do (when (setf match
-                         (find-if (lambda (x) (location-desig-nearby
-                                               (desig:desig-prop-value 
-                                                (cut:var-value '?desig (car transporting-tasks)) :located-at)
-                                               (desig:desig-prop-value 
-                                                (cut:var-value '?desig x) :located-at)))
-                                  (cdr transporting-tasks)))
-               (push (list (car transporting-tasks) match) matching-pairs))
-             (setf transporting-tasks (remove match (cdr transporting-tasks))))
-    matching-pairs))
+                                       (cpl-impl::get-top-level-task-tree top-level-name)))
+        ))))
 
 (defun environment-rule (&optional (top-level-name :top-level))
   (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))

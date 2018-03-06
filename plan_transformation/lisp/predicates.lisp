@@ -236,26 +236,8 @@
     (lisp-type ?designator desig:action-designator)
     (desig:desig-prop ?designator (:type ?action-type)))
 
-  (<- (task-similar-transporting-action ?top-level-name ?subtree-path ?other ?loc)
-    (bound ?top-level-name)
-    (bound ?subtree-path)
-    (bagof ?to-compare (task-transporting-action ?top-level-name ?subtree-path ?other ?designator) ?others)
-    (member ?other ?others)
-    ;; (task-transporting-action ?top-level-name ?subtree-path ?other ?_)
-    (perform-task ?top-level-name ?subtree-path ?other)
-    (task-outcome ?other ?outcome)
-    (== :SUCCEEDED ?outcome)
-    (task-parameter ?other ?desig)
-    
-    ;; (task-full-path ?other ?subtask-path)
-    ;; (task-created-at ?top-level-name ?other ?created-time-task)
-    ;;(task-parameter ?other ?desig)
-    (desig:desig-prop ?desig (:location ?loc))
-    )
-
   (<- (task-transporting-action ?top-level-name ?subtree-path ?task ?designator)
-    (task-specific-action ?top-level-name ?subtree-path :transporting ?task ?designator)
-    (task-outcome ?task :succeeded))
+    (task-specific-action ?top-level-name ?subtree-path :transporting ?task ?designator))
   
   (<- (task-navigating-action ?top-level-name ?subtree-path ?task ?designator)
     (task-specific-action ?top-level-name ?subtree-path :navigating ?task ?designator))
@@ -306,4 +288,73 @@
              (task-specific-action ?top-level-name ?subtree-path ?action-type ?other-next-task ?_)
              (task-created-at ?top-level-name ?other-next-task ?created-time-other-next-task)
              (>= ?created-time-task ?created-time-other-next-task))
-            (>= ?created-time-next-task ?created-time-other-next-task))))
+            (>= ?created-time-next-task ?created-time-other-next-task)))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; Transformation utils ;;;
+  (<- (task-location-description-equal ?task ?sibling)
+    (not (== ?task ?sibling))
+    (task-parameter ?task ?desig)
+    (task-parameter ?sibling ?sibling-desig)
+    (lisp-type ?desig desig:action-designator)
+    (desig:desig-prop ?desig (:location ?loc))
+    (lisp-fun desig:description ?loc ?loc-desc)
+    (desig:desig-prop ?sibling-desig (:location ?sibling-loc))
+    (lisp-fun desig:description ?sibling-loc ?sibling-loc-desc)
+    (equal ?loc-desc ?sibling-loc-desc))
+
+  (<- (task-targets-nearby ?task ?sibling ?threshold)
+    (not (== ?task ?sibling))
+    (task-parameter ?task ?desig)
+    (task-parameter ?sibling ?sibling-desig)
+    (desig:desig-prop ?desig (:target ?loc))
+    (desig:desig-prop ?sibling-desig (:target ?sibling-loc))
+    (lisp-fun location-desig-dist ?loc ?sibling-loc ?dist)
+    (< ?dist ?threshold))
+  ;;; Transformation utils ;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; Transformation rule predicates ;;;
+  (<- (task-transporting-siblings ?top-level-name ?subtree-path ?dist-threshold
+                                  ?first-task ?first-path ?second-task ?second-path
+                                  ?first-fetching-desig ?first-delivering-desig)
+    (task ?top-level-name ?subtree-path ?parent)
+    ;; the second task is always the first to be found
+    (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
+    (task-transporting-action ?top-level-name ?subtree-path ?first-task ?_)
+    (not (== ?first-task ?second-task))
+    (task-location-description-equal ?first-task ?second-task)
+    (task-targets-nearby ?first-task ?second-task ?dist-threshold)
+    (task-full-path ?first-task ?first-path)
+    (task-full-path ?second-task ?second-path)
+    (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
+    (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig))
+
+  ;;; Transformation rule predicates ;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  ;; (<- (task-transporting-siblings ?top-level-name ?subtree-path ?dist-threshold
+  ;;                                 ?first-task ?first-path ?second-task ?second-path
+  ;;                                 ?first-fetching-desig ?first-delivering-desig)
+  ;;   (task ?top-level-name ?subtree-path ?parent)
+  ;;   ;; the second task is always the first to be found
+  ;;   (subtask+ ?parent ?second-task)
+  ;;   (subtask+ ?parent ?first-task)
+  ;;   (not (== ?first-task ?second-task))
+  ;;   (task-parameter ?first-task ?desig)
+  ;;   (task-parameter ?second-task ?sibling-desig)
+  ;;   (lisp-type ?desig desig:action-designator)
+  ;;   (desig:desig-prop ?desig (:type :transporting))
+  ;;   (desig:desig-prop ?sibling-desig (:type :transporting))
+  ;;   (task-location-description-equal ?first-task ?second-task)
+  ;;   (task-targets-nearby ?first-task ?second-task ?dist-threshold)
+  ;;   (task-full-path ?first-task ?first-path)
+  ;;   (task-full-path ?second-task ?second-path)
+  ;;   (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
+  ;;   (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig)
+  ;;   )
+
+
+  )

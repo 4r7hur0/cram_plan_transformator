@@ -63,7 +63,7 @@
     (:cup . ((1.45 -1.05 0.9) (0 0 0 1)))
     (:bowl . ((1.4 0.8 0.97) (0 0 0 1)))
     (:spoon . ((1.4 0.4 0.85) (0 0 0 1)))
-    (:milk . ((1.45 -1.2 0.94) (0 0 0 1)))
+    (:milk . ((1.45 -1.2 0.95) (0 0 0 1)))
     (:tray . ((1.45 0.0 0.94) (0 0 -0.7071 0.7071)))
     (:tray-base . ((1.45 0.0 0.85) (0 0 0 1)))))
 
@@ -72,7 +72,7 @@
     (:cup . :left)
     (:bowl . :right)
     (:spoon . :right)
-    (:milk . :left)
+    (:milk . :right)
     (:tray . :right)))
 
 (defparameter *object-placing-poses*
@@ -80,9 +80,9 @@
     (:cup . ((-0.79 1.35 0.9) (0 0 0.7071 0.7071)))
     (:bowl . ((-0.76 1.19 0.93) (0 0 1 0)))
     (:spoon . ((-0.78 1.5 0.86) (0 0 1 0)))
-    (:milk . ((-0.75 1.7 0.96) (0 0 0.7071 0.7071)
+    (:milk . ((-0.7 1.7 0.96) (0 0 0.7071 0.7071)
               ))
-    (:tray . ((-0.75 1.85 0.85) (0 0 1 0)))))
+    (:tray . ((-0.7 1.85 0.85) (0 0 1 0)))))
 
 (defparameter *object-tray-poses*
   '((:breakfast-cereal .  ((1.32 -0.147636495729287465d0 1.2010342152913412d0)
@@ -102,7 +102,7 @@
   (btr:detach-all-objects (btr:get-robot-object))
   (let ((object-types '(:tray-base
                         :tray
-                        ;; :breakfast-cereal
+                        :breakfast-cereal
                         ;; :spoon
                         :milk
                         :cup
@@ -167,67 +167,67 @@
                         )))
            (mapcar #'move-into-fridge object-types))))
 
-(defun go-to-sink-or-island (&optional (sink-or-island :sink))
-  (let ((?navigation-goal (ecase sink-or-island
-                            (:sink *sink-nav-goal*)
-                            (:island *island-nav-goal*)))
-        (?ptu-goal *look-goal*))
-    (cpl:par
-      (pp-plans::park-arms)
-      (exe:perform (desig:a motion
-                            (type going)
-                            (target (desig:a location (pose ?navigation-goal))))))
-    (exe:perform (desig:a motion
-                          (type looking)
-                          (target (desig:a location (pose ?ptu-goal)))))))
+;; (defun go-to-sink-or-island (&optional (sink-or-island :sink))
+;;   (let ((?navigation-goal (ecase sink-or-island
+;;                             (:sink *sink-nav-goal*)
+;;                             (:island *island-nav-goal*)))
+;;         (?ptu-goal *look-goal*))
+;;     (cpl:par
+;;       (pp-plans::park-arms)
+;;       (exe:perform (desig:a motion
+;;                             (type going)
+;;                             (target (desig:a location (pose ?navigation-goal))))))
+;;     (exe:perform (desig:a motion
+;;                           (type looking)
+;;                           (target (desig:a location (pose ?ptu-goal)))))))
 
-(defun pick-object (&optional (?object-type :breakfast-cereal) (?arm :right))
-  (pp-plans:park-arms)
-  (go-to-sink-or-island :sink)
-  (let* ((?object-desig
-           (desig:an object (type ?object-type)))
-         (?perceived-object-desig
-           (exe:perform (desig:an action
-                                  (type detecting)
-                                  (object ?object-desig)))))
-    (cpl:par
-      (exe:perform (desig:an action
-                             (type looking)
-                             (object ?perceived-object-desig)))
-      (exe:perform (desig:an action
-                             (type picking-up)
-                             (arm ?arm)
-                             (object ?perceived-object-desig))))))
+;; (defun pick-object (&optional (?object-type :breakfast-cereal) (?arm :right))
+;;   (pp-plans:park-arms)
+;;   (go-to-sink-or-island :sink)
+;;   (let* ((?object-desig
+;;            (desig:an object (type ?object-type)))
+;;          (?perceived-object-desig
+;;            (exe:perform (desig:an action
+;;                                   (type detecting)
+;;                                   (object ?object-desig)))))
+;;     (cpl:par
+;;       (exe:perform (desig:an action
+;;                              (type looking)
+;;                              (object ?perceived-object-desig)))
+;;       (exe:perform (desig:an action
+;;                              (type picking-up)
+;;                              (arm ?arm)
+;;                              (object ?perceived-object-desig))))))
 
-(defun place-object (?target-pose &optional (?arm :right))
-  (pp-plans:park-arms)
-  (go-to-sink-or-island :island)
-  (cpl:par
-    (exe:perform (desig:a motion
-                          (type looking)
-                          (target (desig:a location
-                                           (pose ?target-pose)))))
-    (exe:perform (desig:an action
-                           (type placing)
-                           (arm ?arm)
-                           (target (desig:a location
-                                            (pose ?target-pose)))))))
+;; (defun place-object (?target-pose &optional (?arm :right))
+;;   (pp-plans:park-arms)
+;;   (go-to-sink-or-island :island)
+;;   (cpl:par
+;;     (exe:perform (desig:a motion
+;;                           (type looking)
+;;                           (target (desig:a location
+;;                                            (pose ?target-pose)))))
+;;     (exe:perform (desig:an action
+;;                            (type placing)
+;;                            (arm ?arm)
+;;                            (target (desig:a location
+;;                                             (pose ?target-pose)))))))
 
-(defun demo-hard-coded ()
-  (spawn-objects-on-sink-counter)
+;; (defun demo-hard-coded ()
+;;   (spawn-objects-on-sink-counter)
 
-  (pr2-proj:with-simulated-robot
+;;   (pr2-proj:with-simulated-robot
 
-    (dolist (object-type '(:breakfast-cereal :cup :bowl :spoon :milk))
+;;     (dolist (object-type '(:breakfast-cereal :cup :bowl :spoon :milk))
 
-      (let ((placing-target
-              (cl-transforms-stamped:pose->pose-stamped
-               "map" 0.0
-               (cram-bullet-reasoning:ensure-pose
-                (cdr (assoc object-type *object-placing-poses*)))))
-            (arm-to-use
-              (cdr (assoc object-type *object-grasping-arms*))))
+;;       (let ((placing-target
+;;               (cl-transforms-stamped:pose->pose-stamped
+;;                "map" 0.0
+;;                (cram-bullet-reasoning:ensure-pose
+;;                 (cdr (assoc object-type *object-placing-poses*)))))
+;;             (arm-to-use
+;;               (cdr (assoc object-type *object-grasping-arms*))))
 
-        (pick-object object-type arm-to-use)
-        (place-object placing-target arm-to-use)))))
+;;         (pick-object object-type arm-to-use)
+;;         (place-object placing-target arm-to-use)))))
 
