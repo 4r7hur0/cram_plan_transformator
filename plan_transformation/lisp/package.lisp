@@ -32,8 +32,10 @@
 
 (defpackage plan-transformation
   (:nicknames :plt)
-  (:use :cram-prolog
-        :common-lisp)
+  (:use #:cram-prolog
+        #:common-lisp
+        #:desig
+        #:exe)
   (:import-from #:cpl
                 #:def-cram-function #:def-top-level-cram-function #:plan-failure)
   (:import-from #:cpl-impl

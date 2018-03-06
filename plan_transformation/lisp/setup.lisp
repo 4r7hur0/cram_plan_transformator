@@ -35,11 +35,12 @@
     (<- (location-costmap:costmap-size 12 12))
     (<- (location-costmap:costmap-origin -6 -6))
     (<- (location-costmap:costmap-resolution 0.05))
-
-    (<- (location-costmap:costmap-padding 0.2))
+    
+    (<- (location-costmap:costmap-padding 0.5))
     (<- (location-costmap:costmap-manipulation-padding 0.2))
-    (<- (location-costmap:costmap-in-reach-distance 0.6))
-    (<- (location-costmap:costmap-reach-minimal-distance 0.2)))
+    (<- (location-costmap:costmap-in-reach-distance 0.7))
+    (<- (location-costmap:costmap-reach-minimal-distance 0.2))
+    (<- (location-costmap:visibility-costmap-size 2.5)))
 
   (setf cram-bullet-reasoning-belief-state:*robot-parameter* "robot_description")
   (setf cram-bullet-reasoning-belief-state:*kitchen-parameter* "kitchen_description")
@@ -50,7 +51,11 @@
 
   (setf cram-tf:*tf-default-timeout* 2.0)
 
-  (setf prolog:*break-on-lisp-errors* t))
+  (setf prolog:*break-on-lisp-errors* t)
+
+  (cram-bullet-reasoning:clear-costmap-vis-object)
+
+  (btr:add-objects-to-mesh-list "plan_transformation"))
 
 (roslisp-utilities:register-ros-init-function init-environment)
 
@@ -74,8 +79,8 @@
   (when task-tree-name
     (cpl-impl::remove-top-level-task-tree task-tree-name)))
 
-;; (defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
-;;   (btr:add-costmap-function-object map))
+(defmethod location-costmap:on-visualize-costmap opengl ((map location-costmap:location-costmap))
+  (btr:add-costmap-function-object map))
 
-;; (defmethod location-costmap:on-visualize-costmap-sample opengl ((point cl-transforms:3d-vector))
-;;   (btr:add-costmap-sample-object point))
+(defmethod location-costmap:on-visualize-costmap-sample opengl ((point cl-transforms:3d-vector))
+  (btr:add-costmap-sample-object point))

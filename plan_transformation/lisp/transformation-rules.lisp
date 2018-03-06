@@ -45,9 +45,9 @@
    (desig:desig-prop-value 
     (cut:var-value '?desig task) :location)))
 
-(defun get-location-from-task (task)
-  (desig:desig-prop-value 
-   (cut:var-value '?desig task) :located-at)))
+;; (defun get-location-from-task (task)
+;;   (desig:desig-prop-value 
+;;    (cut:var-value '?desig task) :located-at))
 
 (defun location-desig-nearby (desig-1 desig-2 &optional (threshold 0.2))
   (> threshold (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
@@ -189,7 +189,7 @@
 (defun tasks-with-nearby-location (&optional (top-level-name :top-level) (action-type :transporting-from-container))
   (let* ((transporting-tasks
            (cut:force-ll
-            (prolog:prolog `(task-specific-action ,top-level-name ((demo-random)) ,action-type ?task ?desig))))
+            (prolog:prolog `(task-specific-action ,top-level-name ((demo-fridge)) ,action-type ?task ?desig))))
         (match)
         (matching-pairs (list)))
     (loop while transporting-tasks

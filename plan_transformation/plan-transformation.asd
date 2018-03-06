@@ -32,31 +32,35 @@
   :author "artnie"
   :license "BSD"
   
-  :depends-on (plan-transformation-tests
-               roslisp-utilities ; for ros-init-function
+  :depends-on (roslisp-utilities ; for ros-init-function
 
                cl-transforms
                cl-transforms-stamped
                cl-tf
                cram-tf
 
-               
+               cram-language
                cram-executive
                cram-designators
                cram-prolog
                cram-projection
                cram-occasions-events
-               
+               cram-utilities
                
                cram-common-failures
+               cram-mobile-pick-place-plans
+               
+
+               cram-knowrob-pick-place
+               cram-robosherlock
 
                cram-physics-utils ; for reading "package://" paths
                cl-bullet ; for handling BOUNDING-BOX datastructures
+               
                cram-bullet-reasoning
                cram-bullet-reasoning-belief-state
                cram-bullet-reasoning-utilities
-
-               cram-pr2-projection ; for projection process modules
+               cram-bullet-reasoning-designators
 
                cram-semantic-map-costmap
                ; cram-bullet-reasoning-costmap ; not using any spatial relation cms yet
@@ -64,22 +68,27 @@
                cram-robot-pose-gaussian-costmap
                cram-occupancy-grid-costmap
                cram-location-costmap
-
-               cram-mobile-pick-place-plans
+               
+               cram-pr2-projection ; for projection process modules
+               cram-pr2-projection-reasoning
                cram-pr2-description
-               cram-language
-
+               cram-process-modules
+               
+               cram-pr2-fetch-deliver-plans
                cram-execution-trace
-
-               cram-pr2-pick-place-demo)
+               cram-pr2-pick-place-demo
+               )
   :components
   ((:module "lisp"
     :components
     ((:file "package")
+     (:file "setup" :depends-on ("package"))
      (:file "poses" :depends-on ("package"))
      (:file "utils" :depends-on ("package"))
-     (:file "setup" :depends-on ("package"))
-     (:file "reader" :depends-on ("package"))
+     (:file "costmaps" :depends-on ("package"))
+     (:file "projection-poses" :depends-on ("package" "utils"))
+     (:file "predicates" :depends-on ("package" "projection-poses" "costmaps"))
      (:file "plans" :depends-on ("package" "poses" "utils"))
      (:file "top-level-plans" :depends-on ("package" "poses" "utils" "plans"))
-     (:file "transformation-rules" :depends-on ("package" "poses" "utils" "plans" "top-level-plans"))))))
+     (:file "transformation-rules" :depends-on ("package" "poses" "utils" "plans"
+                                                          "projection-poses" "top-level-plans"))))))
