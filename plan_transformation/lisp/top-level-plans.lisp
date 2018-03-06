@@ -41,7 +41,7 @@
 
   (pr2-proj:with-simulated-robot
     (demo-random nil))
-
+  (cet:disable-fluent-tracing)
   ;; (cut:force-ll (prolog:prolog `(task-navigating-action :top-level ((demo-random))
   ;;                                                       ?task ?designator)))
   )
@@ -52,7 +52,8 @@
     (cpl-impl::remove-top-level-task-tree :top-level))
 
   (pr2-proj:with-simulated-robot
-    (demo-stacking nil)))
+    (demo-stacking nil))
+  (cet:disable-fluent-tracing))
 
 (defun test-fridge (&optional (reset t))
   (cet:enable-fluent-tracing)
@@ -60,7 +61,8 @@
     (cpl-impl::remove-top-level-task-tree :top-level))
 
   (pr2-proj:with-simulated-robot
-    (demo-fridge)))
+    (demo-fridge))
+  (cet:disable-fluent-tracing))
 
 (cpl:def-cram-function initialize-or-finalize ()
   (cpl:with-failure-handling
@@ -253,8 +255,8 @@
 
   (initialize-or-finalize)
 
-  (let ((list-of-objects '(:milk
-                           :breakfast-cereal
+  (let ((list-of-objects '(:breakfast-cereal
+                           :milk
                            :cup
                            ;; :bowl
                            ;; :tray

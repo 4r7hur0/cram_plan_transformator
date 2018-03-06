@@ -317,21 +317,41 @@
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;; Transformation rule predicates ;;;
-  (<- (task-transporting-siblings ?top-level-name ?subtree-path ?dist-threshold
-                                  ?first-task ?first-path ?second-task ?second-path
+  (<- (task-transporting-siblings ?top-level-name ?subtree-path 
+                                  ?first-path ?second-path
                                   ?first-fetching-desig ?first-delivering-desig)
     (task ?top-level-name ?subtree-path ?parent)
-    ;; the second task is always the first to be found
     (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
     (task-transporting-action ?top-level-name ?subtree-path ?first-task ?_)
     (not (== ?first-task ?second-task))
+    (lisp-fun slot-value ?first-task cpl-impl::code-replacements ?replacement)
+    (== ?replacement nil)
     (task-location-description-equal ?first-task ?second-task)
-    (task-targets-nearby ?first-task ?second-task ?dist-threshold)
     (task-full-path ?first-task ?first-path)
     (task-full-path ?second-task ?second-path)
     (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
     (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig))
 
+  (<- (task-transporting-with-tray ?top-level-name ?subtree-path ?dist-threshold
+                                   ?first-path ?second-path
+                                   ?first-fetching-desig ?first-delivering-desig
+                                   ?second-fetching-desig ?first-delivering-desig)
+    (task ?top-level-name ?subtree-path ?parent)
+    (bagof ?second-task
+           (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
+           ?other-tasks)
+    (member ?first-task ?other-tasks)
+    (not (== ?first-task ?second-task))
+    (task-location-description-equal ?first-task ?second-task)
+    (task-targets-nearby ?first-task ?second-task ?dist-threshold)
+    ;; (lisp-fun slot-value ?first-task cpl-impl::code-replacements ?replacement)
+    ;; (== ?replacement nil)
+    (task-full-path ?first-task ?first-path)
+    (task-full-path ?second-task ?second-path)
+    (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
+    (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig)
+    (task-fetching-action ?top-level-name ?second-path ?_ ?second-fetching-desig)
+    (task-delivering-action ?top-level-name ?second-path ?_ ?second-delivering-desig))
   ;;; Transformation rule predicates ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   

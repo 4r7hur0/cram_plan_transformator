@@ -32,25 +32,36 @@
 
 (defun check-rules (&optional (top-level-name :top-level))
   (let ((both-hands-rule-bindings)
-        ;; (stacking-rule-bindings)
+        (stacking-rule-bindings)
         ;; (environment-rule-bindings)
         )
     (format T "Checking for applicable rules.~%")
     (format T "Investigate both-hands-predicate...~%")
-    (when (setf both-hands-rule-bindings
-                (prolog '(task-transporting-siblings
+    ;; (when (setf both-hands-rule-bindings
+    ;;             (prolog '(task-transporting-siblings
+    ;;                       :top-level
+    ;;                       ((demo-stacking))
+    ;;                       ?path-1
+    ;;                       ?path-2
+    ;;                       ?fetch-desig
+    ;;                       ?deliver-desig)))
+    ;;   (format T "Function ~a is applicable!~%" #'both-hands-transporting-rule)
+    ;;   (both-hands-transporting-rule (cut:lazy-car both-hands-rule-bindings)
+    ;;                                 top-level-name))
+    (when (setf stacking-rule-bindings
+                (prolog '(task-transporting-with-tray
                           :top-level
                           ((demo-stacking))
                           0.5
-                          ?task-1
                           ?path-1
-                          ?task-2
                           ?path-2
-                          ?fetch-desig
-                          ?deliver-desig)))
-      (format T "Function ~a is applicable!~%" #'both-hands-transporting-rule)
-      (both-hands-transporting-rule (cut:lazy-car both-hands-rule-bindings)
-                                    top-level-name))))
+                          ?fetch-1
+                          ?deliver-1
+                          ?fetch-2
+                          ?deliver-2)))
+      (format T "Function ~a is applicable!~%" #'stacking-rule)
+      (stacking-rule (cut:lazy-car stacking-rule-bindings)
+                     top-level-name))))
 
 (defun both-hands-transporting-rule (bindings &optional (top-level-name :top-level))
   (cut:with-vars-bound
@@ -69,64 +80,120 @@
                                  ?path-2
                                  (cpl-impl::get-top-level-task-tree top-level-name))))
 
+(defun stacking-rule (bindings &optional (top-level-name :top-level))
+  (cut:with-vars-bound
+      (?path-1 ?path-2 ?fetch-1 ?deliver-1 ?fetch-2 ?deliver-2)
+      bindings
+      (let* ((tray-poses '(((1.34 0.0 1.0)
+                            ;;(0 0 1 0)
+                            (0 0 0.7071 0.7071))
+                           ((1.34 0.1 0.96)
+                            (0 0 1 0))
+                           ((1.34 0.0 0.96)
+                            (0 0 1 0))))
+             (tray-action (tray-transporting-action)))
+        
+        (labels ((change-loc-to-tray (action-desig)
+                   (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
+                                      "map" 0.0
+                                      (btr:ensure-pose (pop tray-poses))))
+                         (?desig-cpy (desig:description (desig:copy-designator action-desig))))
+                     (setf ?desig-cpy (remove (assoc :arm ?desig-cpy)
+                                       (remove (assoc :target ?desig-cpy) ?desig-cpy)))
+                     (push `(:target ,(desig:a location
+                                               (pose ?tray-pose))) ?desig-cpy)
+                     (push `(:target :left) ?desig-cpy)
+                     (desig:make-designator :action ?desig-cpy)))
+                 (btr-obj (name)
+                   (btr:object btr:*current-bullet-world* name)))
 
+          (let* ((deliver-1 (change-loc-to-tray ?deliver-1))
+                 (deliver-2 (change-loc-to-tray ?deliver-2))
+                 (name-1 (desig:desig-prop-value
+                          (desig:desig-prop-value ?deliver-1 :object) :name))
+                 (name-2 (desig:desig-prop-value
+                          (desig:desig-prop-value ?deliver-2 :object) :name)))
+
+            (flet ((trans-fun (&rest desig)
+                     (declare (ignore desig))
+                     (exe:perform ?fetch-1)
+                     (exe:perform deliver-1)
+                     (btr::attach-item name-1 (btr-obj :tray-1))
+                     (exe:perform ?fetch-2)
+                     (exe:perform deliver-2)
+                     (btr::attach-item name-2 (btr-obj :tray-1))
+                     (exe:perform tray-action)
+                     (btr::detach-all-items (btr-obj :tray-1))))
+
+              (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
+                                           #'trans-fun
+                                           ?path-1
+                                           (cpl-impl::get-top-level-task-tree top-level-name))
+
+              (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
+                                           #'(lambda (&rest desig)
+                                               (declare (ignore desig)))
+                                           ?path-2
+                                           (cpl-impl::get-top-level-task-tree top-level-name))))))))
   
-(defun stacking-rule (&optional (top-level-name :top-level))
-  (let* ((matching-pairs (tasks-with-matching-location '((demo-stacking)) top-level-name))
-         (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
-         (paths (mapcar #'cpl:task-tree-node-path tasks))
-         (tray-poses '(((1.3469725290934245d0 0.1027636495729287465d0 0.9610342152913412d0)
-                        (0 0 1 0))
-                       ((1.34 0.0 1.0)
-                        (0 0 1 0);; (0 0 -0.7071 0.7071)
-                        )
-                       ((1.34 0.0 0.96)
-                        (0 0 1 0))))
-         (tray-action (tray-transporting-action)))
-    (print "ready pairs")
-    (labels ((change-loc-to-tray (action-desig)
-               (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
-                                  "map" 0.0
-                                  (btr:ensure-pose (pop tray-poses))))
-                     (?desig-cpy (desig:description (desig:copy-designator action-desig))))
-                 (setf ?desig-cpy (remove (assoc :target ?desig-cpy) ?desig-cpy))
-                 (push `(:target ,(desig:a location
-                                           (pose ?tray-pose))) ?desig-cpy)
-                 (desig:make-designator :action
-                                        ?desig-cpy)))
-             (btr-obj (name)
-               (btr:object btr:*current-bullet-world* name)))
-      (let* ((transports-list
-              (map 'list (lambda (path)()
-                           (let* ((fetch-desig
-                                    (action-designator-under-path path :fetching top-level-name))
-                                  (deliver-desig
-                                    (change-loc-to-tray
-                                     (action-designator-under-path path :delivering top-level-name))))
-                             (list fetch-desig
-                                   deliver-desig
-                                   (desig:desig-prop-value
-                                    (desig:desig-prop-value deliver-desig :object) :name)))) paths)))
-        (flet ((trans-fun (&rest desig)
-                 (declare (ignore desig))
-                 (dolist (transport (reverse transports-list))
-                   (exe:perform (first transport))
-                   (exe:perform (second transport))
-                   (btr::attach-item (third transport) (btr-obj :tray-1)))
-                 (exe:perform tray-action)
-                 (btr::detach-all-items (btr-obj :tray-1))))
+;; (defun stacking-rule-old (&optional (top-level-name :top-level))
+;;   (let* ((matching-pairs (tasks-with-matching-location '((demo-stacking)) top-level-name))
+;;          (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
+;;          (paths (mapcar #'cpl:task-tree-node-path tasks))
+;;          (tray-poses '(((1.3469725290934245d0 0.1027636495729287465d0 0.9610342152913412d0)
+;;                         (0 0 1 0))
+;;                        ((1.34 0.0 1.0)
+;;                         (0 0 1 0);; (0 0 -0.7071 0.7071)
+;;                         )
+;;                        ((1.34 0.0 0.96)
+;;                         (0 0 1 0))))
+;;          (tray-action (tray-transporting-action)))
+;;     (print "ready pairs")
+;;     (labels ((change-loc-to-tray (action-desig)
+;;                (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
+;;                                   "map" 0.0
+;;                                   (btr:ensure-pose (pop tray-poses))))
+;;                      (?desig-cpy (desig:description (desig:copy-designator action-desig))))
+;;                  (setf ?desig-cpy (remove (assoc :target ?desig-cpy) ?desig-cpy))
+;;                  (push `(:target ,(desig:a location
+;;                                            (pose ?tray-pose))) ?desig-cpy)
+;;                  (desig:make-designator :action
+;;                                         ?desig-cpy)))
+;;              (btr-obj (name)
+;;                (btr:object btr:*current-bullet-world* name)))
+;;       (let* ((transports-list
+;;               (map 'list (lambda (path)()
+;;                            (let* ((fetch-desig
+;;                                     (action-designator-under-path path :fetching top-level-name))
+;;                                   (deliver-desig
+;;                                     (change-loc-to-tray
+;;                                      (action-designator-under-path path :delivering top-level-name))))
+;;                              (list fetch-desig
+;;                                    deliver-desig
+;;                                    (desig:desig-prop-value
+;;                                     (desig:desig-prop-value deliver-desig :object) :name)))) paths)))
+;;         (flet ((trans-fun (&rest desig)
+;;                  (declare (ignore desig))
+;;                  (dolist (transport (reverse transports-list))
+;;                    (exe:perform (first transport))
+;;                    (exe:perform (second transport))
+;;                    (btr::attach-item (third transport) (btr-obj :tray-1)))
+;;                  (exe:perform tray-action)
+;;                  (btr::detach-all-items (btr-obj :tray-1))))
 
-          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
-                                       #'trans-fun
-                                       (second paths)
-                                       (cpl-impl::get-top-level-task-tree top-level-name))
+;;           (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
+;;                                        #'trans-fun
+;;                                        (second paths)
+;;                                        (cpl-impl::get-top-level-task-tree top-level-name))
 
-          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
-                                       #'(lambda (&rest desig)
-                                           (declare (ignore desig)))
-                                       (first paths)
-                                       (cpl-impl::get-top-level-task-tree top-level-name)))
-        ))))
+;;           (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
+;;                                        #'(lambda (&rest desig)
+;;                                            (declare (ignore desig)))
+;;                                        (first paths)
+;;                                        (cpl-impl::get-top-level-task-tree top-level-name)))
+;;         ))))
+
+
 
 (defun environment-rule (&optional (top-level-name :top-level))
   (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))
