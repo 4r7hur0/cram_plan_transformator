@@ -303,14 +303,26 @@
     (lisp-fun desig:description ?sibling-loc ?sibling-loc-desc)
     (equal ?loc-desc ?sibling-loc-desc))
 
-  (<- (task-targets-nearby ?task ?sibling ?threshold)
-    (not (== ?task ?sibling))
+  (<- (task-nearby ?task ?sibling ?threshold ?location-key)
+    ;; (not (== ?task ?sibling))
     (task-parameter ?task ?desig)
     (task-parameter ?sibling ?sibling-desig)
-    (desig:desig-prop ?desig (:target ?loc))
-    (desig:desig-prop ?sibling-desig (:target ?sibling-loc))
+    (desig:desig-prop ?desig (?location-key ?loc))
+    (desig:desig-prop ?sibling-desig (?location-key ?sibling-loc))
     (lisp-fun location-desig-dist ?loc ?sibling-loc ?dist)
     (< ?dist ?threshold))
+  
+  (<- (task-targets-nearby ?task ?sibling ?threshold)
+    (tasks-nearby ?task ?sibling ?threshold :target))
+
+  (<- (task-locations-nearby ?task ?sibling ?threshold)
+    (tasks-nearby ?task ?sibling ?threshold :location))
+
+  (<- (top-level-name ?top-level-name)
+    (lisp-fun get-top-level-name ?top-level-name))
+
+  (<- (top-level-path ?top-level-path)
+    (lisp-fun get-top-level-path ?top-level-path))
   ;;; Transformation utils ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -320,7 +332,7 @@
   (<- (task-transporting-siblings ?top-level-name ?subtree-path 
                                   ?first-path ?second-path
                                   ?first-fetching-desig ?first-delivering-desig)
-    (task-transporting-action :top-level ((demo-stacking)) ?second-task ?_)
+    (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
     (task-sibling ?second-task ?first-task)
     (not (== ?first-task ?second-task))
     (lisp-fun slot-value ?first-task cpl-impl::code-replacements ?replacement)
@@ -330,8 +342,10 @@
     (task-location-description-equal ?first-task ?second-task)
     (task-full-path ?first-task ?first-path)
     (task-full-path ?second-task ?second-path)
-    (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
-    (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig))
+    (subtask ?first-task ?f-or-d-task-1)
+    (subtask ?first-task ?f-or-d-task-2)
+    (task-fetching-action ?top-level-name ?first-path ?f-or-d-task-1 ?first-fetching-desig)
+    (task-delivering-action ?top-level-name ?first-path ?f-or-d-task-2 ?first-delivering-desig))
 
   (<- (task-transporting-with-tray ?top-level-name ?subtree-path ?dist-threshold
                                    ?first-path ?second-path
@@ -353,6 +367,33 @@
     (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig)
     (task-fetching-action ?top-level-name ?second-path ?_ ?second-fetching-desig)
     (task-delivering-action ?top-level-name ?second-path ?_ ?second-delivering-desig))
+
+  (<- (task-transporting-from-fridge (?navigate-action ?accessing-path) ?closing-path)
+    (top-level-name ?top-level-name)
+    (top-level-path ?path)
+    (top-level-task ?top-level-name ?root)
+    (subtask ?root ?top-task)
+    (subtask ?top-task ?child)
+    (bagof ?child
+           (task-specific-action ?top-level-name ?path :transporting-from-container ?child ?_)
+           ?transports)
+    (member ?transport-action ?transports)
+    (task-nearby ?child ?transport-action 0.5 :located-at)
+    (task-full-path ?transport-action ?transport-path)
+    (task-specific-action ?top-level-name ?transport-path :accessing-container ?access ?_)
+    (task-full-path ?access ?accessing-path)
+    (task-specific-action ?top-level-name ?accessing-path :navigating ?navigate ?_)
+    (task-parameter ?navigate ?navigate-action)
+    (task-specific-action ?top-level-name ?transport-path :closing-container ?closing ?_)
+    (task-full-path ?closing ?closing-path)
+    
+    ;; (subtask ?sib-filter ?closing)
+    ;; (bagof
+    ;;  ?closing
+    ;;  (task-specific-action ?top-level-name ?path :closing-container ?closing ?_)
+    ;;  ?closing-task)
+    ;; (task-full-path ?closing-task ?closing-path)
+    )
   ;;; Transformation rule predicates ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   

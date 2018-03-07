@@ -30,6 +30,24 @@
 
 (in-package :plt)
 
+(defun get-top-level-name ()
+  "For prolog predicates."
+  *top-level-name*)
+
+(defparameter *object-cad-models*
+  '((:cup . "cup_eco_orange")
+    (:bowl . "edeka_red_bowl")))
+
+(defun get-top-level-path (&optional (top-level-name *top-level-name*))
+  (cpl:task-tree-node-path
+   (cdr (car (direct-child
+              (cpl:get-top-level-task-tree top-level-name))))))
+
+(defgeneric direct-child (node)
+  (:documentation "Returns only the direct children of the node")
+  (:method ((node cpl:task-tree-node))
+    (cpl:task-tree-node-children node)))
+
 (defun tasks-with-nearby-location (&optional (top-level-name :top-level)
                                      (action-type :transporting-from-container))
   (let* ((transporting-tasks

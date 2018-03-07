@@ -30,14 +30,12 @@
 
 (in-package :plt)
 
-(defparameter *object-cad-models*
-  '((:cup . "cup_eco_orange")
-    (:bowl . "edeka_red_bowl")))
+(defparameter *top-level-name* :top-level)
 
 (defun test-stacking (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
-    (cpl-impl::remove-top-level-task-tree :top-level))
+    (cpl-impl::remove-top-level-task-tree *top-level-name*))
   (pr2-proj:with-simulated-robot
     (demo-stacking nil))
   (cet:disable-fluent-tracing))
@@ -45,7 +43,7 @@
 (defun test-fridge (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
-    (cpl-impl::remove-top-level-task-tree :top-level))
+    (cpl-impl::remove-top-level-task-tree *top-level-name*))
   (pr2-proj:with-simulated-robot
     (demo-fridge))
   (cet:disable-fluent-tracing))
@@ -137,7 +135,7 @@
   (initialize-or-finalize)
   (let ((list-of-objects '(:milk
                            :cup
-                           ;; :breakfast-cereal
+                           :breakfast-cereal
                            ;; :bowl :tray :spoon
                            )))
     (dolist (?object-type list-of-objects)
