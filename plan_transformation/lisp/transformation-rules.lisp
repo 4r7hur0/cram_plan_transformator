@@ -127,45 +127,84 @@
                                            ?path-2
                                            (cpl-impl::get-top-level-task-tree top-level-name))))))))
 
-(defun environment-rule (&optional (top-level-name :top-level))
-  (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))
-         (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
-         (paths (mapcar #'cpl:task-tree-node-path tasks))
-         (first-closing-path (cpl:task-tree-node-path
-                              (alexandria:assoc-value
-                               (cut:lazy-car
-                                (prolog:prolog `(task-specific-action ,top-level-name
-                                                                      ,(car (last paths))
-                                                                      :closing-container
-                                                                      ?task ?_))) '?task)))
-         (last-opening (cut:lazy-car
-                        (prolog:prolog `(task-specific-action ,top-level-name
-                                                              ,(car paths)
-                                                              :accessing-container
-                                                              ?task ?desig))))
-         (last-opening-path (cpl:task-tree-node-path (alexandria:assoc-value last-opening '?task)))
-         (last-opening-action (alexandria:assoc-value last-opening '?desig))
-         (?opening-location (desig:desig-prop-value last-opening-action :location)))
+(defun environment-rule (bindings &optional (top-level-name :top-level))
+  (let* ((last-action (pop bindings))
+         (bindings (reverse bindings))
+         (first-action (pop bindings)))
+    (flet ((close-nothing (&rest desig) 
+             (declare (ignore desig))
+             (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* NIL))
+           (open-nothing (navigation-action) 
+             (exe:perform navigation-action)
+             (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* T)))
+
+    (destructuring-bind (x y closing-path) first-action
+      (declare (ignore x y))
+      (cpl-impl::replace-task-code '(CONTAINER-FIRST-CLOSING-TRANSFORM)
+                                   #'close-nothing
+                                   closing-path
+                                   (cpl-impl::get-top-level-task-tree top-level-name)))
+
+    (destructuring-bind (navigation-action opening-path x) last-action
+      (declare (ignore x))
+      (cpl-impl::replace-task-code '(CONTAINER-LAST-OPENING-TRANSFORM)
+                                   #'(lambda (&rest desig)
+                                       (declare (ignore desig))
+                                       (open-nothing navigation-action))
+                                   opening-path
+                                   (cpl-impl::get-top-level-task-tree top-level-name)))
+
+    (loop for (navigation-action opening-path closing-path) in bindings
+          do (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-ACCESS-TRANSFORM-~a" 1)))
+                                 #'close-nothing
+                                 closing-path
+                                 (cpl-impl::get-top-level-task-tree top-level-name))
+             (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-CLOSE-TRANSFORM-~a" 1)))
+                                 #'(lambda (&rest desig)
+                                     (declare (ignore desig))
+                                     (open-nothing navigation-action))
+                                 opening-path
+                                 (cpl-impl::get-top-level-task-tree top-level-name))))))
+
+;; (defun environment-rule (&optional (top-level-name :top-level))
+;;   (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))
+;;          (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
+;;          (paths (mapcar #'cpl:task-tree-node-path tasks))
+;;          (first-closing-path (cpl:task-tree-node-path
+;;                               (alexandria:assoc-value
+;;                                (cut:lazy-car
+;;                                 (prolog:prolog `(task-specific-action ,top-level-name
+;;                                                                       ,(car (last paths))
+;;                                                                       :closing-container
+;;                                                                       ?task ?_))) '?task)))
+;;          (last-opening (cut:lazy-car
+;;                         (prolog:prolog `(task-specific-action ,top-level-name
+;;                                                               ,(car paths)
+;;                                                               :accessing-container
+;;                                                               ?task ?desig))))
+;;          (last-opening-path (cpl:task-tree-node-path (alexandria:assoc-value last-opening '?task)))
+;;          (last-opening-action (alexandria:assoc-value last-opening '?desig))
+;;          (?opening-location (desig:desig-prop-value last-opening-action :location)))
     
 
-    ;; dont close the door, just enable collisions
-    (cpl-impl::replace-task-code '(CONTAINER-FIRST-CLOSING-TRANSFORM)
-                                 #'(lambda (&rest desig)
-                                     (declare (ignore desig))
-                                     (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* NIL))
-                                 first-closing-path
-                                 (cpl-impl::get-top-level-task-tree top-level-name))
+;;     ;; dont close the door, just enable collisions
+;;     (cpl-impl::replace-task-code '(CONTAINER-FIRST-CLOSING-TRANSFORM)
+;;                                  #'(lambda (&rest desig)
+;;                                      (declare (ignore desig))
+;;                                      (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* NIL))
+;;                                  first-closing-path
+;;                                  (cpl-impl::get-top-level-task-tree top-level-name))
 
-    ;; dont open, just navigate and disable collisions
-    (cpl-impl::replace-task-code '(CONTAINER-LAST-OPENING-TRANSFORM)
-                                 #'(lambda (&rest desig)
-                                     (declare (ignore desig))
-                                     (exe:perform
-                                      (desig:an action
-                                                (type navigating)
-                                                (location ?opening-location)))
-                                     (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* T))
-                                 last-opening-path
-                                 (cpl-impl::get-top-level-task-tree top-level-name))
+;;     ;; dont open, just navigate and disable collisions
+;;     (cpl-impl::replace-task-code '(CONTAINER-LAST-OPENING-TRANSFORM)
+;;                                  #'(lambda (&rest desig)
+;;                                      (declare (ignore desig))
+;;                                      (exe:perform
+;;                                       (desig:an action
+;;                                                 (type navigating)
+;;                                                 (location ?opening-location)))
+;;                                      (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* T))
+;;                                  last-opening-path
+;;                                  (cpl-impl::get-top-level-task-tree top-level-name))
 
-   first-closing-path ))
+;;    first-closing-path ))

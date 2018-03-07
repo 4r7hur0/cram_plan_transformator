@@ -323,15 +323,26 @@
 
   (<- (top-level-path ?top-level-path)
     (lisp-fun get-top-level-path ?top-level-path))
+
+  (<- (without-replacement ?task)
+    (lisp-fun slot-value ?task cpl-impl::code-replacements ?replacement)
+    (== ?replacement nil)
+    (subtask ?task ?sub)
+    (lisp-fun slot-value ?sub cpl-impl::code-replacements ?sub-replacement)
+    (== ?sub-replacement nil))
+
+  (<- (location-distance-threshold ?threshold)
+    (lisp-fun get-location-distance-threshold ?threshold))
   ;;; Transformation utils ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;; Transformation rule predicates ;;;
-  (<- (task-transporting-siblings ?top-level-name ?subtree-path 
-                                  ?first-path ?second-path
+  (<- (task-transporting-siblings ?first-path ?second-path
                                   ?first-fetching-desig ?first-delivering-desig)
+    (top-level-name ?top-level-name)
+    (top-level-path ?subtree-path)
     (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
     (task-sibling ?second-task ?first-task)
     (not (== ?first-task ?second-task))
@@ -347,10 +358,12 @@
     (task-fetching-action ?top-level-name ?first-path ?f-or-d-task-1 ?first-fetching-desig)
     (task-delivering-action ?top-level-name ?first-path ?f-or-d-task-2 ?first-delivering-desig))
 
-  (<- (task-transporting-with-tray ?top-level-name ?subtree-path ?dist-threshold
-                                   ?first-path ?second-path
+  (<- (task-transporting-with-tray ?first-path ?second-path
                                    ?first-fetching-desig ?first-delivering-desig
                                    ?second-fetching-desig ?first-delivering-desig)
+    (top-level-name ?top-level-name)
+    (top-level-path ?subtree-path)
+    (location-distance-threshold ?dist-threshold)
     (task ?top-level-name ?subtree-path ?parent)
     (bagof ?second-task
            (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
@@ -374,26 +387,20 @@
     (top-level-task ?top-level-name ?root)
     (subtask ?root ?top-task)
     (subtask ?top-task ?child)
+    (without-replacement ?child)
     (bagof ?child
            (task-specific-action ?top-level-name ?path :transporting-from-container ?child ?_)
            ?transports)
     (member ?transport-action ?transports)
-    (task-nearby ?child ?transport-action 0.5 :located-at)
+    (location-distance-threshold ?threshold)
+    (task-nearby ?child ?transport-action ?threshold :located-at)
     (task-full-path ?transport-action ?transport-path)
     (task-specific-action ?top-level-name ?transport-path :accessing-container ?access ?_)
     (task-full-path ?access ?accessing-path)
     (task-specific-action ?top-level-name ?accessing-path :navigating ?navigate ?_)
     (task-parameter ?navigate ?navigate-action)
     (task-specific-action ?top-level-name ?transport-path :closing-container ?closing ?_)
-    (task-full-path ?closing ?closing-path)
-    
-    ;; (subtask ?sib-filter ?closing)
-    ;; (bagof
-    ;;  ?closing
-    ;;  (task-specific-action ?top-level-name ?path :closing-container ?closing ?_)
-    ;;  ?closing-task)
-    ;; (task-full-path ?closing-task ?closing-path)
-    )
+    (task-full-path ?closing ?closing-path))
   ;;; Transformation rule predicates ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   

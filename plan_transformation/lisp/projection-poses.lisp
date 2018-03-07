@@ -30,6 +30,8 @@
 
 (in-package :plt)
 
+(defparameter *location-distance-threshold* 0.5)
+
 (defparameter *sink-nav-goal*
   (cl-transforms-stamped:make-pose-stamped
    "map"

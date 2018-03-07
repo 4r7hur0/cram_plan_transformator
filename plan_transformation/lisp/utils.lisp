@@ -34,6 +34,10 @@
   "For prolog predicates."
   *top-level-name*)
 
+(defun  get-location-distance-threshold ()
+  "For prolog predicates."
+  *location-distance-threshold*)
+
 (defparameter *object-cad-models*
   '((:cup . "cup_eco_orange")
     (:bowl . "edeka_red_bowl")))
