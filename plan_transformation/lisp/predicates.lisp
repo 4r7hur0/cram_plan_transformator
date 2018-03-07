@@ -320,12 +320,13 @@
   (<- (task-transporting-siblings ?top-level-name ?subtree-path 
                                   ?first-path ?second-path
                                   ?first-fetching-desig ?first-delivering-desig)
-    (task ?top-level-name ?subtree-path ?parent)
-    (task-transporting-action ?top-level-name ?subtree-path ?second-task ?_)
-    (task-transporting-action ?top-level-name ?subtree-path ?first-task ?_)
+    (task-transporting-action :top-level ((demo-stacking)) ?second-task ?_)
+    (task-sibling ?second-task ?first-task)
     (not (== ?first-task ?second-task))
     (lisp-fun slot-value ?first-task cpl-impl::code-replacements ?replacement)
     (== ?replacement nil)
+    (lisp-fun slot-value ?second-task cpl-impl::code-replacements ?replacement-2)
+    (== ?replacement-2 nil)
     (task-location-description-equal ?first-task ?second-task)
     (task-full-path ?first-task ?first-path)
     (task-full-path ?second-task ?second-path)
