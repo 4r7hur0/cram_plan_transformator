@@ -378,36 +378,3 @@
 
 
   )
-
-(def-fact-group transport-from-container-designators (desig:action-grounding)
-
-  (<- (desig:action-grounding ?action-designator (access-container ?location-designator))
-    (spec:property ?action-designator (:type :accessing-container))
-    (spec:property ?action-designator (:location ?some-location-designator))
-    (desig:current-designator ?some-location-designator ?location-designator))
-
-  (<- (desig:action-grounding ?action-designator (close-container ?location-designator))
-    (spec:property ?action-designator (:type :closing-container))
-    (spec:property ?action-designator (:location ?some-location-designator))
-    (desig:current-designator ?some-location-designator ?location-designator))
-
-  (<- (desig:action-grounding ?action-designator (transport-from-container
-                                                  ?container-location-designator
-                                                  ?object-designator
-                                                  ?fetching-location-designator
-                                                  ?delivering-location-designator
-                                                  ?arm
-                                                  ?retract-arms))
-    (spec:property ?action-designator (:type :transporting-from-container))
-    (spec:property ?action-designator (:object ?some-object-designator))
-    (desig:current-designator ?some-object-designator ?object-designator)
-    (spec:property ?action-designator (:located-at ?some-container-location-designator))
-    (desig:current-designator ?some-container-location-designator ?container-location-designator)
-    (spec:property ?action-designator (:location ?some-fetching-location-designator))
-    (desig:current-designator ?some-fetching-location-designator ?fetching-location-designator)
-    (spec:property ?action-designator (:target ?some-delivering-location-designator))
-    (desig:current-designator ?some-delivering-location-designator ?delivering-location-designator)
-    (or (spec:property ?action-designator (:arm ?arm))
-        (equal ?arm NIL))
-    (or (spec:property ?action-designator (:retract-arms ?retract-arms))
-        (equal ?retract-arms T))))
