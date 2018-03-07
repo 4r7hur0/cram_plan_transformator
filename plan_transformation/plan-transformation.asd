@@ -82,12 +82,12 @@
     :components
     ((:file "package")
      (:file "setup" :depends-on ("package"))
-     (:file "poses" :depends-on ("package"))
-     (:file "utils" :depends-on ("package"))
      (:file "costmaps" :depends-on ("package"))
-     (:file "projection-poses" :depends-on ("package" "utils"))
+     (:file "designators" :depends-on ("package"))
+     (:file "projection-poses" :depends-on ("package"))
+     (:file "utils" :depends-on ("package" "projection-poses"))
      (:file "predicates" :depends-on ("package" "projection-poses" "costmaps"))
-     (:file "plans" :depends-on ("package" "poses" "utils"))
-     (:file "top-level-plans" :depends-on ("package" "poses" "utils" "plans"))
-     (:file "transformation-rules" :depends-on ("package" "poses" "utils" "plans"
+     (:file "plans" :depends-on ("package" "utils" "designators"))
+     (:file "top-level-plans" :depends-on ("package" "projection-poses" "utils" "plans"))
+     (:file "transformation-rules" :depends-on ("package" "utils" "plans"
                                                           "projection-poses" "top-level-plans"))))))

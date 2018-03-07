@@ -34,23 +34,10 @@
   '((:cup . "cup_eco_orange")
     (:bowl . "edeka_red_bowl")))
 
-(defun test (&optional (reset t))
-  (cet:enable-fluent-tracing)
-  (when reset
-    (cpl-impl::remove-top-level-task-tree :top-level))
-
-  (pr2-proj:with-simulated-robot
-    (demo-random nil))
-  (cet:disable-fluent-tracing)
-  ;; (cut:force-ll (prolog:prolog `(task-navigating-action :top-level ((demo-random))
-  ;;                                                       ?task ?designator)))
-  )
-
 (defun test-stacking (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
     (cpl-impl::remove-top-level-task-tree :top-level))
-
   (pr2-proj:with-simulated-robot
     (demo-stacking nil))
   (cet:disable-fluent-tracing))
@@ -59,7 +46,6 @@
   (cet:enable-fluent-tracing)
   (when reset
     (cpl-impl::remove-top-level-task-tree :top-level))
-
   (pr2-proj:with-simulated-robot
     (demo-fridge))
   (cet:disable-fluent-tracing))
@@ -84,183 +70,21 @@
       (exe:perform (desig:an action (type opening) (gripper (left right))))
       (exe:perform (desig:an action (type looking) (direction forward))))))
 
-(cpl:def-cram-function demo-random (&optional (random t))
+
+(cpl:def-cram-function demo-stacking (&optional (random nil))
   (btr:detach-all-objects (btr:get-robot-object))
   (btr-utils:kill-all-objects)
-  
-  ;; (when (eql cram-projection:*projection-environment*
-  ;;            'cram-pr2-projection::pr2-bullet-projection-environment)
-  ;;   (if random
-  ;;       (spawn-objects-on-sink-counter-randomly)
-  ;;       (spawn-objects-on-sink-counter)))
-
-  (spawn-objects-into-fridge)
-  
-  (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
-
-  (initialize-or-finalize)
-
-  (let ((list-of-objects '(:milk
-                           ;:breakfast-cereal
-                           :cup
-                           ;; :bowl
-                           ;:tray
-                           ;; :spoon
-                           )))
-    (dolist (?object-type list-of-objects)
-      (let* ((?cad-model
-               (cdr (assoc ?object-type *object-cad-models*)))
-             (?object-to-fetch
-               (desig:an object
-                         (type ?object-type)
-                         (desig:when ?cad-model
-                           (cad-model ?cad-model))))
-             (?fetching-location
-               (desig:a location
-                        (on "CounterTop")
-                        (name "iai_kitchen_sink_area_counter_top")
-                        (side right)))
-             (?container-fetch-pose
-               (cl-transforms-stamped:make-pose-stamped
-                        "base_footprint" 0.0
-                        (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
-                        (cl-transforms:make-identity-rotation)))
-             (?fetching-container-location
-               (desig:a location
-                        (pose ?container-fetch-pose)))
-             (?container-pose
-               (cl-transforms-stamped:pose->pose-stamped
-                    "map" 0.0
-                    (cram-bullet-reasoning:ensure-pose
-                     '((0.8 -0.8 0) (0 0 0 1)))))
-             (?container-location
-               (desig:a location
-                        (pose ?container-pose)))
-             (?placing-target-pose
-               (cl-transforms-stamped:pose->pose-stamped
-                "map" 0.0
-                (if (not (eq ?object-type :tray))
-                    (cram-bullet-reasoning:ensure-pose
-                     (cdr (assoc ?object-type *object-placing-poses*)))
-                    (cram-bullet-reasoning:ensure-pose
-                     (cdr (assoc ?object-type *object-placing-poses*))))))
-             (?arm-to-use
-               (cdr (assoc ?object-type *object-grasping-arms*)))
-             (?delivering-location
-               (desig:a location
-                        (pose ?placing-target-pose))))
-
-        (cpl:with-failure-handling
-            ((common-fail:high-level-failure (e)
-               (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
-               (return)))
-          (let* (;; (?navigation-goal *island-nav-goal*)
-                 ;; (?ptu-goal *look-goal*)
-                 ;; (?obj-name (make-symbol (format nil "~a-1" (string-trim "\:" (write-to-string ?object-type)))))
-                 (?isnt-tray (not (eq ?object-type :tray)))
-                 (transporting-action (desig:an action
-                                       (type transporting)
-                                       (object ?object-to-fetch)
-                                       (arm ?arm-to-use)
-                                       (location ?fetching-location)
-                                       (target ?delivering-location)
-                                       (retract-arms ?isnt-tray)))
-                 (fridge-navigation (desig:an action
-                                              (type navigating)
-                                              (location ?container-location))))
-            
-            (exe:perform (desig:an action
-                                       (type transporting-from-container)
-                                       (object ?object-to-fetch)
-                                       (located-at ?container-location)
-                                       (arm right)
-                                       (location ?fetching-container-location)
-                                       (target ?delivering-location)
-                                       (retract-arms ?isnt-tray)))
-            
-            ;; (if ?isnt-tray
-            ;;     (progn (btr::attach-item :MILK-1
-            ;;                              (btr:object btr:*current-bullet-world* :TRAY-1))
-            ;;            ;; (btr::attach-item :CUP-1
-            ;;            ;;                   (btr:object btr:*current-bullet-world* :TRAY-1))
-            ;;            )
-            ;;     (progn (btr::detach-item :MILK-1 (btr:object btr:*current-bullet-world* :TRAY-1))
-            ;;            ;; (btr::detach-item :CUP-1 (btr:object btr:*current-bullet-world* :TRAY-1))
-            ;;            ))
-
-                ;; (progn
-                ;;   (exe:perform (desig:an action
-                ;;                          (type searching)
-                ;;                          (object ?object-to-fetch)
-                ;;                          (location ?fetching-location)))
-                ;;   (exe:perform (desig:an action
-                ;;                          (type fetching)
-                ;;                          (object ?object-to-fetch)
-                ;;                          (location ?fetching-location)
-                ;;                          (retract-arms nil)))
-                ;;   (let* ((?pose-at-target-location (desig:reference ?delivering-location))
-                ;;          (?nav-location (desig:a location
-                ;;                                  (reachable-for pr2)
-                ;;                                  (location (desig:a location
-                ;;                                                     (pose ?pose-at-target-location))))))
-                ;;     (exe:perform (desig:an action
-                ;;                            (type navigating)
-                ;;                            (location ?nav-location)
-                ;;                            (retract-arms nil))))
-                ;;   (btr::detach-item :BOWL-1 (btr:object btr:*current-bullet-world* :TRAY-1)))
-                
-                                   
-            ;; (exe:perform (desig:an action
-            ;;                        (type navigating)
-            ;;                        (location ?delivering-location)
-            ;;                        (retract-arms nil)))
-            ;; (exe:perform (desig:an action
-            ;;                       (type navigating)
-            ;;                       (location ?fetching-location)))
-            ;; (exe:perform (desig:a motion
-            ;;                       (type looking)
-            ;;                       (target (desig:a location (pose ?ptu-goal)))))
-            ;; (exe:perform (desig:an action
-            ;;                        (type placing)
-            ;;                        (arm ?arm-to-use)
-            ;;                        (target (desig:a location
-            ;;                                         (pose ?delivering-location)))))
-           ;; (exe:perform (desig:an action
-           ;;                        (type transporting)
-           ;;                        (object ?object-to-fetch)
-           ;;                        (arm ?arm-to-use)
-           ;;                        (location ?fetching-location)
-           ;;                        (target ?delivering-location)
-           ;;                        (retract-arms nil)))
-            ;; (setf bowl-tf (cl-transforms:transform-diff (cl-transforms:pose->transform (btr:object-pose :tray-1))
-            ;;                                             tray-pre-tf))
-            ;; (setf new-bowl-pose (cl-transforms:transform-pose bowl-tf (btr:object-pose :bowl-1)))
-            ;; (btr-utils:move-object :bowl-1 (pose->btr-pose new-bowl-pose))
-            )))))
-
-  (initialize-or-finalize)
-  cpl:*current-path*)
-
-(cpl:def-cram-function demo-stacking (&optional (random t))
-  (btr:detach-all-objects (btr:get-robot-object))
-  (btr-utils:kill-all-objects)
-  
   (when (eql cram-projection:*projection-environment*
              'cram-pr2-projection::pr2-bullet-projection-environment)
     (if random
         (spawn-objects-on-sink-counter-randomly)
         (spawn-objects-on-sink-counter)))
-  
   (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
-
   (initialize-or-finalize)
-
   (let ((list-of-objects '(:breakfast-cereal
                            :milk
                            :cup
-                           ;; :bowl
-                           ;; :tray
-                           ;; :spoon
+                           ;; :bowl  :tray :spoon
                            )))
     (dolist (?object-type list-of-objects)
       (let* ((?cad-model
@@ -294,18 +118,14 @@
             ((common-fail:high-level-failure (e)
                (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
                (return)))
-          (let* ((?isnt-tray (not (eq ?object-type :tray)))
-                 (transporting-action (desig:an action
-                                       (type transporting)
-                                       (object ?object-to-fetch)
-                                       (arm ?arm-to-use)
-                                       (location ?fetching-location)
-                                       (target ?delivering-location)
-                                       (retract-arms ?isnt-tray)))
-                 (object-name (intern (format nil "~a-1" ?object-type) :keyword)))
-            
-            (exe:perform transporting-action))))))
-
+          (let* ((?isnt-tray (not (eq ?object-type :tray))))
+            (exe:perform (desig:an action
+                                   (type transporting)
+                                   (object ?object-to-fetch)
+                                   (arm ?arm-to-use)
+                                   (location ?fetching-location)
+                                   (target ?delivering-location)
+                                   (retract-arms ?isnt-tray))))))))
   (initialize-or-finalize)
   cpl:*current-path*)
 
@@ -315,13 +135,10 @@
   (spawn-objects-into-fridge)
   (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
   (initialize-or-finalize)
-
   (let ((list-of-objects '(:milk
-                           ;;:breakfast-cereal
                            :cup
-                           ;; :bowl
-                           ;; :tray
-                           ;; :spoon
+                           ;; :breakfast-cereal
+                           ;; :bowl :tray :spoon
                            )))
     (dolist (?object-type list-of-objects)
       (let* ((?cad-model
@@ -368,9 +185,9 @@
 
         (cpl:with-failure-handling
             ((common-fail:high-level-failure (e)
-               (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
-               (return)))
-          (let* ((?isnt-tray (not (eq ?object-type :tray))))
+                                             (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
+                                             (return)))
+          (let* ((?not-tray (not (eq ?object-type :tray))))
             
             (exe:perform (desig:an action
                                    (type transporting-from-container)
@@ -379,10 +196,25 @@
                                    (arm right)
                                    (location ?fetching-container-location)
                                    (target ?delivering-location)
-                                   (retract-arms ?isnt-tray))))))))
-
+                                   (retract-arms ?not-tray))))))))
   (initialize-or-finalize)
   cpl:*current-path*)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; OLD FUNCTIONS BELOW ;;;
+
+(defun test (&optional (reset t))
+  (cet:enable-fluent-tracing)
+  (when reset
+    (cpl-impl::remove-top-level-task-tree :top-level))
+
+  (pr2-proj:with-simulated-robot
+    (demo-random nil))
+  (cet:disable-fluent-tracing)
+  ;; (cut:force-ll (prolog:prolog `(task-navigating-action :top-level ((demo-random))
+  ;;                                                       ?task ?designator)))
+  )
 
 (defun test-next-sibling-time ()
   (cet:enable-fluent-tracing)
@@ -535,68 +367,166 @@
       (mapcar (alexandria:curry #'get-pick-up-location :top-level)
               paths))))
 
-(defun tl-replacement-example ()
-  (replace-task-code (format t "test") (lambda () (format t "test"))
-                     '((cpl:top-level tt2))
-                     (cpl:get-top-level-task-tree 'tt2)))
+
+(cpl:def-cram-function demo-random (&optional (random t))
+  (demo-stacking random))
+
+;; (cpl:def-cram-function demo-random (&optional (random t))
+;;   (btr:detach-all-objects (btr:get-robot-object))
+;;   (btr-utils:kill-all-objects)
+  
+;;   ;; (when (eql cram-projection:*projection-environment*
+;;   ;;            'cram-pr2-projection::pr2-bullet-projection-environment)
+;;   ;;   (if random
+;;   ;;       (spawn-objects-on-sink-counter-randomly)
+;;   ;;       (spawn-objects-on-sink-counter)))
+
+;;   (spawn-objects-into-fridge)
+  
+;;   (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
+
+;;   (initialize-or-finalize)
+
+;;   (let ((list-of-objects '(:milk
+;;                            ;:breakfast-cereal
+;;                            :cup
+;;                            ;; :bowl
+;;                            ;:tray
+;;                            ;; :spoon
+;;                            )))
+;;     (dolist (?object-type list-of-objects)
+;;       (let* ((?cad-model
+;;                (cdr (assoc ?object-type *object-cad-models*)))
+;;              (?object-to-fetch
+;;                (desig:an object
+;;                          (type ?object-type)
+;;                          (desig:when ?cad-model
+;;                            (cad-model ?cad-model))))
+;;              (?fetching-location
+;;                (desig:a location
+;;                         (on "CounterTop")
+;;                         (name "iai_kitchen_sink_area_counter_top")
+;;                         (side right)))
+;;              (?container-fetch-pose
+;;                (cl-transforms-stamped:make-pose-stamped
+;;                         "base_footprint" 0.0
+;;                         (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
+;;                         (cl-transforms:make-identity-rotation)))
+;;              (?fetching-container-location
+;;                (desig:a location
+;;                         (pose ?container-fetch-pose)))
+;;              (?container-pose
+;;                (cl-transforms-stamped:pose->pose-stamped
+;;                     "map" 0.0
+;;                     (cram-bullet-reasoning:ensure-pose
+;;                      '((0.8 -0.8 0) (0 0 0 1)))))
+;;              (?container-location
+;;                (desig:a location
+;;                         (pose ?container-pose)))
+;;              (?placing-target-pose
+;;                (cl-transforms-stamped:pose->pose-stamped
+;;                 "map" 0.0
+;;                 (if (not (eq ?object-type :tray))
+;;                     (cram-bullet-reasoning:ensure-pose
+;;                      (cdr (assoc ?object-type *object-placing-poses*)))
+;;                     (cram-bullet-reasoning:ensure-pose
+;;                      (cdr (assoc ?object-type *object-placing-poses*))))))
+;;              (?arm-to-use
+;;                (cdr (assoc ?object-type *object-grasping-arms*)))
+;;              (?delivering-location
+;;                (desig:a location
+;;                         (pose ?placing-target-pose))))
+
+;;         (cpl:with-failure-handling
+;;             ((common-fail:high-level-failure (e)
+;;                (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
+;;                (return)))
+;;           (let* (;; (?navigation-goal *island-nav-goal*)
+;;                  ;; (?ptu-goal *look-goal*)
+;;                  ;; (?obj-name (make-symbol (format nil "~a-1" (string-trim "\:" (write-to-string ?object-type)))))
+;;                  (?isnt-tray (not (eq ?object-type :tray)))
+;;                  (transporting-action (desig:an action
+;;                                        (type transporting)
+;;                                        (object ?object-to-fetch)
+;;                                        (arm ?arm-to-use)
+;;                                        (location ?fetching-location)
+;;                                        (target ?delivering-location)
+;;                                        (retract-arms ?isnt-tray)))
+;;                  (fridge-navigation (desig:an action
+;;                                               (type navigating)
+;;                                               (location ?container-location))))
+            
+;;             (exe:perform (desig:an action
+;;                                        (type transporting-from-container)
+;;                                        (object ?object-to-fetch)
+;;                                        (located-at ?container-location)
+;;                                        (arm right)
+;;                                        (location ?fetching-container-location)
+;;                                        (target ?delivering-location)
+;;                                        (retract-arms ?isnt-tray)))
+            
+;;             ;; (if ?isnt-tray
+;;             ;;     (progn (btr::attach-item :MILK-1
+;;             ;;                              (btr:object btr:*current-bullet-world* :TRAY-1))
+;;             ;;            ;; (btr::attach-item :CUP-1
+;;             ;;            ;;                   (btr:object btr:*current-bullet-world* :TRAY-1))
+;;             ;;            )
+;;             ;;     (progn (btr::detach-item :MILK-1 (btr:object btr:*current-bullet-world* :TRAY-1))
+;;             ;;            ;; (btr::detach-item :CUP-1 (btr:object btr:*current-bullet-world* :TRAY-1))
+;;             ;;            ))
+
+;;                 ;; (progn
+;;                 ;;   (exe:perform (desig:an action
+;;                 ;;                          (type searching)
+;;                 ;;                          (object ?object-to-fetch)
+;;                 ;;                          (location ?fetching-location)))
+;;                 ;;   (exe:perform (desig:an action
+;;                 ;;                          (type fetching)
+;;                 ;;                          (object ?object-to-fetch)
+;;                 ;;                          (location ?fetching-location)
+;;                 ;;                          (retract-arms nil)))
+;;                 ;;   (let* ((?pose-at-target-location (desig:reference ?delivering-location))
+;;                 ;;          (?nav-location (desig:a location
+;;                 ;;                                  (reachable-for pr2)
+;;                 ;;                                  (location (desig:a location
+;;                 ;;                                                     (pose ?pose-at-target-location))))))
+;;                 ;;     (exe:perform (desig:an action
+;;                 ;;                            (type navigating)
+;;                 ;;                            (location ?nav-location)
+;;                 ;;                            (retract-arms nil))))
+;;                 ;;   (btr::detach-item :BOWL-1 (btr:object btr:*current-bullet-world* :TRAY-1)))
+                
+                                   
+;;             ;; (exe:perform (desig:an action
+;;             ;;                        (type navigating)
+;;             ;;                        (location ?delivering-location)
+;;             ;;                        (retract-arms nil)))
+;;             ;; (exe:perform (desig:an action
+;;             ;;                       (type navigating)
+;;             ;;                       (location ?fetching-location)))
+;;             ;; (exe:perform (desig:a motion
+;;             ;;                       (type looking)
+;;             ;;                       (target (desig:a location (pose ?ptu-goal)))))
+;;             ;; (exe:perform (desig:an action
+;;             ;;                        (type placing)
+;;             ;;                        (arm ?arm-to-use)
+;;             ;;                        (target (desig:a location
+;;             ;;                                         (pose ?delivering-location)))))
+;;            ;; (exe:perform (desig:an action
+;;            ;;                        (type transporting)
+;;            ;;                        (object ?object-to-fetch)
+;;            ;;                        (arm ?arm-to-use)
+;;            ;;                        (location ?fetching-location)
+;;            ;;                        (target ?delivering-location)
+;;            ;;                        (retract-arms nil)))
+;;             ;; (setf bowl-tf (cl-transforms:transform-diff (cl-transforms:pose->transform (btr:object-pose :tray-1))
+;;             ;;                                             tray-pre-tf))
+;;             ;; (setf new-bowl-pose (cl-transforms:transform-pose bowl-tf (btr:object-pose :bowl-1)))
+;;             ;; (btr-utils:move-object :bowl-1 (pose->btr-pose new-bowl-pose))
+;;             )))))
+
+;;   (initialize-or-finalize)
+;;   cpl:*current-path*)
 
 
-(def-top-level-cram-function tt2 ()
-  (spawn-two-bottles 2)
-  (proj:with-projection-environment pr2-proj::pr2-bullet-projection-environment
-    (bring-one-by-one)
-    ;; (prepare-pr2)
-    ;;(bring-at-once)
-    ))
 
-(def-top-level-cram-function tt ()
-  (spawn-two-bottles)
-  (proj:with-projection-environment pr2-proj::pr2-bullet-projection-environment
-    ;; Go to counter top and perceive bottle
-    (prepare-pr2)
-    ;; (fetch-bottle-from-counter)
-    (fetch-both-bottles)))  
-
-(def-top-level-cram-function test-switch-two-bottles ()
-  (spawn-two-bottles)
-  (proj:with-projection-environment pr2-proj::pr2-bullet-projection-environment
-    
-      ;; Go to counter top and perceive bottle
-      (let ((?navigation-goal *pose-counter*)
-            (?ptu-goal 
-              (cl-transforms-stamped:make-pose-stamped
-               "base_footprint"
-               0.0
-               (cl-transforms:make-3d-vector 0.65335d0 0.076d0 0.758d0)
-               (cl-transforms:make-identity-rotation))))
-        (cpl:par
-          ;; Move torso up
-          (exe:perform
-           (desig:a motion (type moving-torso) (joint-angle 0.3)))
-          (pp-plans::park-arms)
-          (navigate-to ?navigation-goal))
-        (look-at ?ptu-goal))
-      ;; Pick up bottle-1 with right arm.
-      (let ((?perceived-bottle-1 (get-perceived-bottle-desig)))
-        (pick-up ?perceived-bottle-1 :right)
-        (pp-plans::park-arms :arm :right)
-        ;; Move to the meal table
-        (let ((?pose *pose-meal-table*))
-          (navigate-to ?pose))
-        ;; Pick up bottle-2 with left arm
-        (let ((?perceived-bottle-2 (get-perceived-bottle-desig)))
-          (pick-up ?perceived-bottle-2 :left)
-          ;; Move left arm out of sight
-          (pp-plans::park-arms :arm :left)
-          ;; Place bottle-1 on second table
-          (let ((?drop-pose *pose-bottle-2*))
-            (place-down ?drop-pose ?perceived-bottle-1 :right))
-          ;; Move right arm out of sight
-          (pp-plans::park-arms :arm :right)
-          ;; Move to the counter table 
-          (let ((?navigation-goal *pose-counter*))
-            (navigate-to ?navigation-goal))
-          ;; Place bottle-2 on the counter
-          (let ((?drop-pose *pose-bottle-1*))
-            (place-down ?drop-pose ?perceived-bottle-2 :left))
-          (pp-plans::park-arms)))))
