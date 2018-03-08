@@ -30,7 +30,7 @@
 
 (in-package :plt)
 
-(defun check-rules (&optional (top-level-name :top-level))
+(defun check-rules (&optional (top-level-name (get-top-level-name)))
   (let (;; (both-hands-rule-bindings)
         (stacking-rule-bindings)
         ;; (environment-rule-bindings)
@@ -54,10 +54,11 @@
       (stacking-rule (cut:lazy-car stacking-rule-bindings)
                      top-level-name))))
 
-(defun both-hands-transporting-rule (bindings &optional (top-level-name :top-level))
+(defun both-hands-transporting-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying BOTH-HANDS-TRANSPORTING-RULE to top-level-plan ~a." top-level-name)
   (destructuring-bind
       ((key path-1 fetch-action) (other-key path-2 deliver-action))
-      bindings
+      (cut:lazy-car lazy-bindings)
     (declare (ignore key other-key))
     (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-1)
                                  #'(lambda (&rest desig)
@@ -72,10 +73,11 @@
                                  path-2
                                  (cpl-impl::get-top-level-task-tree top-level-name))))
 
-(defun stacking-rule (bindings &optional (top-level-name :top-level))
+(defun stacking-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying STACKING-RULE to top-level-plan ~a." top-level-name)
   (destructuring-bind ((key first-deliver-path first-deliver-action)
                        (other-key second-deliver-path second-deliver-action))
-      bindings
+      (cut:lazy-car lazy-bindings)
     (declare (ignore key other-key))
     (let ((tray-poses '(((1.34 0.0 1.0)
                             ;;(0 0 1 0)
@@ -120,66 +122,13 @@
                                            (exe:perform tray-action)
                                            (btr::detach-all-items (btr-obj :tray-1)))
                                        second-deliver-path
-                                       (cpl-impl::get-top-level-task-tree top-level-name))))))))
+                                       (cpl-impl::get-top-level-task-tree top-level-name)))))))
 
-;; (defun stacking-rule (bindings &optional (top-level-name :top-level))
-;;   (cut:with-vars-bound
-;;       (?path-1 ?path-2 ?fetch-1 ?deliver-1 ?fetch-2 ?deliver-2)
-;;       bindings
-;;       (let* ((tray-poses '(((1.34 0.0 1.0)
-;;                             ;;(0 0 1 0)
-;;                             (0 0 0.7071 0.7071))
-;;                            ((1.34 0.1 0.96)
-;;                             (0 0 1 0))
-;;                            ((1.34 0.0 0.96)
-;;                             (0 0 1 0))))
-;;              (tray-action (tray-transporting-action)))
-        
-;;         (labels ((change-loc-to-tray (action-desig)
-;;                    (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
-;;                                       "map" 0.0
-;;                                       (btr:ensure-pose (pop tray-poses))))
-;;                          (?desig-cpy (desig:description (desig:copy-designator action-desig))))
-;;                      (setf ?desig-cpy (remove (assoc :arm ?desig-cpy)
-;;                                        (remove (assoc :target ?desig-cpy) ?desig-cpy)))
-;;                      (push `(:target ,(desig:a location
-;;                                                (pose ?tray-pose))) ?desig-cpy)
-;;                      (push `(:target :left) ?desig-cpy)
-;;                      (desig:make-designator :action ?desig-cpy)))
-;;                  (btr-obj (name)
-;;                    (btr:object btr:*current-bullet-world* name)))
 
-;;           (let* ((deliver-1 (change-loc-to-tray ?deliver-1))
-;;                  (deliver-2 (change-loc-to-tray ?deliver-2))
-;;                  (name-1 (desig:desig-prop-value
-;;                           (desig:desig-prop-value ?deliver-1 :object) :name))
-;;                  (name-2 (desig:desig-prop-value
-;;                           (desig:desig-prop-value ?deliver-2 :object) :name)))
-
-;;             (flet ((trans-fun (&rest desig)
-;;                      (declare (ignore desig))
-;;                      (exe:perform ?fetch-1)
-;;                      (exe:perform deliver-1)
-;;                      (btr::attach-item name-1 (btr-obj :tray-1))
-;;                      (exe:perform ?fetch-2)
-;;                      (exe:perform deliver-2)
-;;                      (btr::attach-item name-2 (btr-obj :tray-1))
-;;                      (exe:perform tray-action)
-;;                      (btr::detach-all-items (btr-obj :tray-1))))
-
-;;               (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
-;;                                            #'trans-fun
-;;                                            ?path-1
-;;                                            (cpl-impl::get-top-level-task-tree top-level-name))
-
-;;               (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
-;;                                            #'(lambda (&rest desig)
-;;                                                (declare (ignore desig)))
-;;                                            ?path-2
-;;                                            (cpl-impl::get-top-level-task-tree top-level-name))))))))
-
-(defun environment-rule (bindings &optional (top-level-name :top-level))
-  (let* ((last-action (pop bindings))
+(defun environment-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying ENVIRONMENT-RULE to top-level-plan ~a." top-level-name)
+  (let* ((bindings (cut:force-ll lazy-bindings))
+         (last-action (pop bindings))
          (bindings (reverse bindings))
          (first-action (pop bindings)))
     (flet ((close-nothing (&rest desig) 
@@ -216,46 +165,3 @@
                                      (open-nothing (cdr navigation-action)))
                                  (cdr opening-path)
                                  (cpl-impl::get-top-level-task-tree top-level-name))))))
-
-;; (defun environment-rule (&optional (top-level-name :top-level))
-;;   (let* ((matching-pairs (tasks-with-nearby-location top-level-name :transporting-from-container))
-;;          (tasks (mapcar (alexandria:rcurry #'alexandria:assoc-value '?task) (car matching-pairs)))
-;;          (paths (mapcar #'cpl:task-tree-node-path tasks))
-;;          (first-closing-path (cpl:task-tree-node-path
-;;                               (alexandria:assoc-value
-;;                                (cut:lazy-car
-;;                                 (prolog:prolog `(task-specific-action ,top-level-name
-;;                                                                       ,(car (last paths))
-;;                                                                       :closing-container
-;;                                                                       ?task ?_))) '?task)))
-;;          (last-opening (cut:lazy-car
-;;                         (prolog:prolog `(task-specific-action ,top-level-name
-;;                                                               ,(car paths)
-;;                                                               :accessing-container
-;;                                                               ?task ?desig))))
-;;          (last-opening-path (cpl:task-tree-node-path (alexandria:assoc-value last-opening '?task)))
-;;          (last-opening-action (alexandria:assoc-value last-opening '?desig))
-;;          (?opening-location (desig:desig-prop-value last-opening-action :location)))
-    
-
-;;     ;; dont close the door, just enable collisions
-;;     (cpl-impl::replace-task-code '(CONTAINER-FIRST-CLOSING-TRANSFORM)
-;;                                  #'(lambda (&rest desig)
-;;                                      (declare (ignore desig))
-;;                                      (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* NIL))
-;;                                  first-closing-path
-;;                                  (cpl-impl::get-top-level-task-tree top-level-name))
-
-;;     ;; dont open, just navigate and disable collisions
-;;     (cpl-impl::replace-task-code '(CONTAINER-LAST-OPENING-TRANSFORM)
-;;                                  #'(lambda (&rest desig)
-;;                                      (declare (ignore desig))
-;;                                      (exe:perform
-;;                                       (desig:an action
-;;                                                 (type navigating)
-;;                                                 (location ?opening-location)))
-;;                                      (setf pr2-proj-reasoning::*allow-pick-up-kitchen-collision* T))
-;;                                  last-opening-path
-;;                                  (cpl-impl::get-top-level-task-tree top-level-name))
-
-;;    first-closing-path ))

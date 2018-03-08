@@ -1,6 +1,7 @@
 ;;;
-;;; Copyright (c) 2017, Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
-;;;                     Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
+;;; Copyright (c) 2018, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
+;;;                     Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
+;;;                     
 ;;; All rights reserved.
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
@@ -304,7 +305,6 @@
     (equal ?loc-desc ?sibling-loc-desc))
 
   (<- (task-nearby ?task ?sibling ?threshold ?location-key)
-    ;; (not (== ?task ?sibling))
     (task-parameter ?task ?desig)
     (task-parameter ?sibling ?sibling-desig)
     (desig:desig-prop ?desig (?location-key ?loc))
@@ -396,27 +396,4 @@
     (task-full-path ?closing ?closing-path))
   ;;; Transformation rule predicates ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-  ;; (<- (task-transporting-siblings ?top-level-name ?subtree-path ?dist-threshold
-  ;;                                 ?first-task ?first-path ?second-task ?second-path
-  ;;                                 ?first-fetching-desig ?first-delivering-desig)
-  ;;   (task ?top-level-name ?subtree-path ?parent)
-  ;;   ;; the second task is always the first to be found
-  ;;   (subtask+ ?parent ?second-task)
-  ;;   (subtask+ ?parent ?first-task)
-  ;;   (not (== ?first-task ?second-task))
-  ;;   (task-parameter ?first-task ?desig)
-  ;;   (task-parameter ?second-task ?sibling-desig)
-  ;;   (lisp-type ?desig desig:action-designator)
-  ;;   (desig:desig-prop ?desig (:type :transporting))
-  ;;   (desig:desig-prop ?sibling-desig (:type :transporting))
-  ;;   (task-location-description-equal ?first-task ?second-task)
-  ;;   (task-targets-nearby ?first-task ?second-task ?dist-threshold)
-  ;;   (task-full-path ?first-task ?first-path)
-  ;;   (task-full-path ?second-task ?second-path)
-  ;;   (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
-  ;;   (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig)
-  ;;   )
-
-
-  )
+ )

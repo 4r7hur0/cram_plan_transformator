@@ -1,6 +1,6 @@
 ;;;
-;;; Copyright (c) 2017, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
-;;;                     Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
+;;; Copyright (c) 2018, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
+;;;                    
 ;;; All rights reserved.
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
@@ -68,8 +68,7 @@
                                                 (cut:var-value '?desig x) :located-at)))
                                   (cdr transporting-tasks)))
                (push (list (car transporting-tasks) match) matching-pairs))
-             (setf transporting-tasks (remove match (cdr transporting-tasks))))
-    matching-pairs))
+             (setf transporting-tasks (remove match (cdr transporting-tasks)))) matching-pairs))
 
 (defun tray-transporting-action ()
   (let* ((?tray-obj (desig:an object
@@ -92,8 +91,7 @@
                           (arm :right)
                           (location ?fetching-location)
                           (target ?delivering-location)
-                          (retract-arms nil))))
-    action))
+                          (retract-arms nil)))) action))
 
 (defun get-location-from-task (task)
   (desig:description
@@ -198,57 +196,3 @@
                     (list (pathname-name pathname) (pathname-type pathname)))
                   (directory (physics-utils:parse-uri
                               (format nil "package://~a/resource/*.*" ros-package))))))
-
-;; (defun get-tltt (tltt-name)
-;;   (cpl:get-top-level-task-tree tltt-name))
-
-;; (defun available-arms ()
-;;   (mapcar 'cdr
-;;           (let ((link-list '(("l_wrist_roll_link" . :left) ("r_wrist_roll_link" . :right))))
-;;             (set-difference link-list (mapcar (lambda (entry) (btr::attachment-link (caadr entry)))
-;;                                               (btr:attached-objects (btr:get-robot-object)))
-;;                             :test #'(lambda (a1 a2) (string= (car a1) a2))))))
-
-;; (defun get-children (node)
-;;        (if (null (cpl:task-tree-node-children node))
-;;            (first (cpl:task-tree-node-path node))
-;;            (append (list (first (cpl:task-tree-node-path node)))
-;;                    (list (mapcar (lambda (child-par) (get-children (cdr child-par)))
-;;                                  (cpl:task-tree-node-children node))))))
-
-;; (defun find-task (task-name node)
-;;   (let ((matches '()))
-;;     (if (and node (equal task-name (first (cpl:task-tree-node-path node))))
-;;              (setf matches (append matches (list node)))
-;;              (setf matches (append matches (map 'list (lambda (child-par) (find-task task-name (cdr child-par)))
-;;                                   (cpl:task-tree-node-children node)))))
-;;     (alexandria:flatten matches)))
-
-;; (defun get-robot-position (node)
-;;   (first (cpl-impl:code-parameters (cpl:task-tree-node-code (cdr (find-if (lambda (entry) (equal (car entry) '(navigate-to)))
-;;            (cpl:task-tree-node-children (cpl:task-tree-node-parent (cpl:task-tree-node-parent node)))))))))
-
-
-;; (defun reset-fast ()
-;;   (reset)
-;;   (tt2)
-;;   (reset nil)
-;;   (apply-rules)
-;;   (tt2))
-
-
-;; (defun get-location-of-transport-action ()
-;;   (desig:desig-prop-value 
-;;    (cut:var-value '?desig 
-;;                   (car (cut:force-ll 
-;;                         (prolog:prolog
-;;                          `(and
-;;                            (task-specific-action :top-level ((demo-random)) 
-;;                                                  :transporting ?task ?desig)))))) :location))
-
-;; (defun test ()
-;;   (cet:enable-fluent-tracing)
-;;   (cpl-impl::remove-top-level-task-tree :top-level)
-
-;;   (pr2-proj:with-simulated-robot
-;;     (demo-random nil)))

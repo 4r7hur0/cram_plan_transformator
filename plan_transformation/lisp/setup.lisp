@@ -1,5 +1,5 @@
 ;;;
-;;; Copyright (c) 2017, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
+;;; Copyright (c) 2018, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
 ;;;                     Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
 ;;; All rights reserved.
 ;;;
@@ -73,9 +73,7 @@
                     (assert (btr:object ?world :urdf ?robot ((0 0 0) (0 0 0 1)) :urdf ,robot-urdf))
                     (cram-robot-interfaces:robot-arms-parking-joint-states ?robot ?joint-states)
                     (assert (btr:joint-state ?world ?robot ?joint-states))
-                    (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0))))
-                    )))
-  ;; (cram-occasions-events:clear-belief)
+                    (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0)))))))
   (when task-tree-name
     (cpl-impl::remove-top-level-task-tree task-tree-name)))
 

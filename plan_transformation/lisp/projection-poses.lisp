@@ -1,5 +1,5 @@
 ;;;
-;;; Copyright (c) 2017, Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
+;;; Copyright (c) 2018, Gayane Kazhoyan <kazhoyan@cs.uni-bremen.de>
 ;;;                     Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
 ;;; All rights reserved.
 ;;;

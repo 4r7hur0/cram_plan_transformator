@@ -81,6 +81,7 @@
   ((:module "lisp"
     :components
     ((:file "package")
+     (:file "plan-transformation" :depends-on ("package"))
      (:file "setup" :depends-on ("package"))
      (:file "costmaps" :depends-on ("package"))
      (:file "designators" :depends-on ("package"))
