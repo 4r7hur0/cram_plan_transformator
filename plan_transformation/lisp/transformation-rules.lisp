@@ -81,11 +81,20 @@
     (declare (ignore key other-key))
     (let ((tray-poses '(((1.34 0.0 1.0)
                             ;;(0 0 1 0)
-                            (0 0 0.7071 0.7071))
+                            (0 0 -0.7071 0.7071))
                            ((1.34 0.1 0.96)
                             (0 0 1 0))
                            ((1.34 0.0 0.96)
+                            (0 0 1 0))
+                        ((1.0 0.0 0.96)
                             (0 0 1 0))))
+          (tray-search-action
+            (an action
+                (type searching)
+                (object (an object (type :tray)))
+                (location (a location
+                             (on "CounterTop")
+                             (name "iai_kitchen_sink_area_counter_top")))))
           (tray-action (tray-transporting-action)))
       
       (labels ((change-loc-to-tray (action-desig)
