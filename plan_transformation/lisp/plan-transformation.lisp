@@ -30,6 +30,8 @@
 
 (in-package :plt)
 
+(defparameter *top-level-name* :top-level)
+
 (defvar *transformation-rules* (make-hash-table :test 'eq))
 (defvar *disabled-transformation-rules* '())
 

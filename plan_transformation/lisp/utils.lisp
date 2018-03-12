@@ -86,7 +86,7 @@
           (cl-transforms-stamped:pose->pose-stamped
            "map" 0.0
            (cram-bullet-reasoning:ensure-pose
-            '((-0.75 1.85 0.85) (0 0 1 0)))))
+            (cdr (assoc :tray *object-placing-poses*)))))
         (?delivering-location
           (desig:a location
                    (pose ?placing-target-pose)))
@@ -97,23 +97,25 @@
                           (location ?fetching-location)
                           (target ?delivering-location)
                           (retract-arms nil)))) action))
-(defun search-tray-pose ()
-  (let* ((tray-obj (perform (an action
-                                  (type searching)
-                                  (object (an object (type :tray)))
-                                  (location (a location
-                                               (on "CounterTop")
-                                               (name "iai_kitchen_sink_area_counter_top")
-                                               (side right))))))
-         (rpos (btr:pose (btr:object btr:*current-bullet-world* 'cram-pr2-description:pr2)))
+
+(defun search-tray ()
+  (perform (an action
+               (type searching)
+               (object (an object (type :tray)))
+               (location (a location
+                            (on "CounterTop")
+                            (name "iai_kitchen_sink_area_counter_top")
+                            (side right))))))
+
+(defun tray-pose (&optional (tray-obj (search-tray)))
+  (let* ((rpos (btr:pose (btr:object btr:*current-bullet-world* 'cram-pr2-description:pr2)))
          (tpos (cadr (assoc :pose (desig-prop-value tray-obj :pose)))))
     (cl-tf:pose->pose-stamped
-     "map"
-     0.0
+     "map" 0.0
      (cl-tf:transform (cl-tf:pose->transform rpos) tpos))))
 
 (defun find-position-on-tray-for-item (item-type &optional (tray-pose nil))
-  (let ((tray-pose (if tray-pose tray-pose (search-tray-pose))))
+  (let ((tray-pose (if tray-pose tray-pose (tray-pose))))
     (destructuring-bind
         ((x y z) (ax ay az aw))
         (alexandria:assoc-value *tray-pose-transforms* item-type)

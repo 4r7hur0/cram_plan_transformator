@@ -30,30 +30,6 @@
 
 (in-package :plt)
 
-(defun check-rules (&optional (top-level-name (get-top-level-name)))
-  (let (;; (both-hands-rule-bindings)
-        (stacking-rule-bindings)
-        ;; (environment-rule-bindings)
-        )
-    (format T "Checking for applicable rules.~%")
-    
-    ;; (when (setf both-hands-rule-bindings
-    ;;             (prolog '(task-transporting-siblings
-    ;;                       :top-level ((demo-stacking)) ?path-1 ?path-2
-    ;;                       ?fetch-desig ?deliver-desig)))
-    ;;   (format T "Function ~a is applicable!~%" #'both-hands-transporting-rule)
-    ;;   (both-hands-transporting-rule (cut:lazy-car both-hands-rule-bindings)
-    ;;                                 top-level-name))
-    (when (setf stacking-rule-bindings
-                (prolog '(task-transporting-with-tray
-                          :top-level ((demo-stacking)) 0.5
-                          ?path-1 ?path-2
-                          ?fetch-1 ?deliver-1
-                          ?fetch-2 ?deliver-2)))
-      (format T "Function ~a is applicable!~%" #'stacking-rule)
-      (stacking-rule (cut:lazy-car stacking-rule-bindings)
-                     top-level-name))))
-
 (defun both-hands-transporting-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
   (roslisp:ros-info (plt) "Applying BOTH-HANDS-TRANSPORTING-RULE to top-level-plan ~a." top-level-name)
   (destructuring-bind
@@ -75,63 +51,50 @@
 
 (defun stacking-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
   (roslisp:ros-info (plt) "Applying STACKING-RULE to top-level-plan ~a." top-level-name)
-  (destructuring-bind ((key first-deliver-path first-deliver-action)
-                       (other-key second-deliver-path second-deliver-action))
-      (cut:lazy-car lazy-bindings)
-    (declare (ignore key other-key))
-    (let ((tray-poses '(((1.34 0.0 1.0)
-                            ;;(0 0 1 0)
-                            (0 0 -0.7071 0.7071))
-                           ((1.34 0.1 0.96)
-                            (0 0 1 0))
-                           ((1.34 0.0 0.96)
-                            (0 0 1 0))
-                        ((1.0 0.0 0.96)
-                            (0 0 1 0))))
-          (tray-search-action
-            (an action
-                (type searching)
-                (object (an object (type :tray)))
-                (location (a location
-                             (on "CounterTop")
-                             (name "iai_kitchen_sink_area_counter_top")))))
-          (tray-action (tray-transporting-action)))
+  (let* ((tray-name :tray-1)
+         (last-deliver-path (cadar (cut:lazy-car lazy-bindings)))
+         (other-delivery-paths
+           (mapcar
+            #'cadar
+            (cut:force-ll
+             (cut:lazy-take 2 (prolog`(task-transporting-with-tray-other-deliveries
+                                       ,last-deliver-path ?o)))))))
+    
+    (labels ((btr-obj (name) (btr:object btr:*current-bullet-world* name))
+             (change-loc-to-tray (action-desig)
+               (let* ((obj-type
+                        (desig-prop-value (desig-prop-value action-desig :object) :type))
+                      (tray-obj (search-tray))
+                      (?new-pose
+                        (find-position-on-tray-for-item obj-type (tray-pose tray-obj)))
+                      (?desig-cpy (desig:description (desig:copy-designator action-desig))))
+                 (setf tray-name (desig-prop-value tray-obj :name))
+                 (setf ?desig-cpy (remove (assoc :target ?desig-cpy) ?desig-cpy))
+                 (push `(:target ,(desig:a location
+                                           (pose ?new-pose))) ?desig-cpy)
+                 (desig:make-designator :action ?desig-cpy))))
       
-      (labels ((change-loc-to-tray (action-desig)
-                 (let ((?tray-pose (cl-transforms-stamped:pose->pose-stamped
-                                    "map" 0.0
-                                    (btr:ensure-pose (pop tray-poses))))
-                       (?desig-cpy (desig:description (desig:copy-designator action-desig))))
-                   (setf ?desig-cpy (remove (assoc :target ?desig-cpy) ?desig-cpy))
-                   (push `(:target ,(desig:a location
-                                             (pose ?tray-pose))) ?desig-cpy)
-                   (desig:make-designator :action ?desig-cpy)))
-               (btr-obj (name) (btr:object btr:*current-bullet-world* name)))
-        
-        (let ((deliver-1 (change-loc-to-tray first-deliver-action))
-              (deliver-2 (change-loc-to-tray second-deliver-action))
-              (name-1 (desig:desig-prop-value
-                       (desig:desig-prop-value first-deliver-action :object) :name))
-              (name-2 (desig:desig-prop-value
-                       (desig:desig-prop-value second-deliver-action :object) :name)))
+      (loop for delivery-path in other-delivery-paths
+            counting t into index
+            do (cpl-impl::replace-task-code
+                `(,(intern (format nil "TRAY-TRANSFORM-~a" index)))
+                #'(lambda (&rest desig)
+                    (exe:perform (change-loc-to-tray (car desig)))
+                    (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
+                                      (btr-obj tray-name)))
+                delivery-path
+                (cpl-impl::get-top-level-task-tree top-level-name)))
 
-          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-1)
-                                       #'(lambda (&rest desig)
-                                           (declare (ignore desig))
-                                           (exe:perform deliver-1)
-                                           (btr::attach-item name-1 (btr-obj :tray-1)))
-                                       first-deliver-path
-                                       (cpl-impl::get-top-level-task-tree top-level-name))
-
-          (cpl-impl::replace-task-code '(STACKING-TRANSFORM-2)
-                                       #'(lambda (&rest desig)
-                                           (declare (ignore desig))
-                                           (exe:perform deliver-2)
-                                           (btr::attach-item name-2 (btr-obj :tray-1))
-                                           (exe:perform tray-action)
-                                           (btr::detach-all-items (btr-obj :tray-1)))
-                                       second-deliver-path
-                                       (cpl-impl::get-top-level-task-tree top-level-name)))))))
+      (cpl-impl::replace-task-code
+       '(STACKING-TRANSFORM-LAST)
+       #'(lambda (&rest desig)
+           (exe:perform (change-loc-to-tray (car desig)))
+           (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
+                             (btr-obj tray-name))
+           (exe:perform (tray-transporting-action))
+           (btr::detach-all-items (btr-obj tray-name)))
+       last-deliver-path
+       (cpl-impl::get-top-level-task-tree top-level-name)))))
 
 
 (defun environment-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
@@ -163,14 +126,15 @@
                                    (cdr opening-path)
                                    (cpl-impl::get-top-level-task-tree top-level-name)))
 
-    (loop for (navigation-action opening-path closing-path) in bindings
-          do (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-ACCESS-TRANSFORM-~a" 1)))
-                                 #'close-nothing
-                                 (cdr closing-path)
-                                 (cpl-impl::get-top-level-task-tree top-level-name))
-             (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-CLOSE-TRANSFORM-~a" 1)))
-                                 #'(lambda (&rest desig)
-                                     (declare (ignore desig))
-                                     (open-nothing (cdr navigation-action)))
-                                 (cdr opening-path)
-                                 (cpl-impl::get-top-level-task-tree top-level-name))))))
+      (loop for (navigation-action opening-path closing-path) in bindings
+            counting t into index
+            do (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-ACCESS-TRANSFORM-~a" index)))
+                                            #'close-nothing
+                                            (cdr closing-path)
+                                            (cpl-impl::get-top-level-task-tree top-level-name))
+               (cpl-impl::replace-task-code `(,(intern (format nil "CONTAINER-CLOSE-TRANSFORM-~a" index)))
+                                            #'(lambda (&rest desig)
+                                                (declare (ignore desig))
+                                                (open-nothing (cdr navigation-action)))
+                                            (cdr opening-path)
+                                            (cpl-impl::get-top-level-task-tree top-level-name))))))

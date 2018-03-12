@@ -30,7 +30,7 @@
 
 (in-package :plt)
 
-(defparameter *top-level-name* :top-level)
+
 
 (defun test-stacking (&optional (reset t))
   (cet:enable-fluent-tracing)

@@ -69,6 +69,8 @@
     (lisp-fun cpl:flatten-task-tree ?subtree-task ?all-subtree-tasks)
     (member ?task-node ?all-subtree-tasks))
 
+  
+  
   ;; subtask
   (<- (subtask ?task ?subtask)
     (bound ?task)
@@ -94,6 +96,8 @@
   (<- (subtask+ ?task ?subtask)
     (subtask ?task ?tmp)
     (subtask+ ?tmp ?subtask))
+
+  
 
   ;; task-sibling
   (<- (task-sibling ?task ?sibling)
@@ -231,6 +235,7 @@
   (<- (task-specific-action ?top-level-name ?subtree-path ?action-type ?task ?designator)
     (bound ?top-level-name)
     (bound ?subtree-path)
+    (not (== nil ?subtree-path))
     (perform-task ?top-level-name ?subtree-path ?task)
     (task-outcome ?task :succeeded)
     (task-parameter ?task ?designator)
@@ -333,6 +338,38 @@
 
   (<- (location-distance-threshold ?threshold)
     (lisp-fun get-location-distance-threshold ?threshold))
+
+  (<- (task-of-path ?task-path ?task-node)
+    (bound ?task-path)
+    (top-level-name ?top-level-name)
+    (top-level-task ?top-level-name ?top-level-task)
+    (lisp-fun cpl:task-tree-node ?task-path ?top-level-task ?task-node))
+
+  ;; Lazy parent backtracking.
+  (<- (parent+ ?task ?parent)
+    (subtask ?parent ?task))
+  
+  (<- (parent+ ?task ?parent)
+    (subtask ?tmp ?task)
+    (parent+ ?tmp ?parent))
+
+  (<- (task-type ?task ?action-type)
+    (top-level-name ?top-level-name)
+    (task-full-path ?task ?task-path)
+    (task-specific-action ?top-level-name ?task-path ?action-type ?task ?_))
+
+  (<- (subtask-depth ?depth-level)
+    (lisp-fun identity 4 ?depth-level))
+  
+  (<- (subtask-to-level ?task ?level ?action-type ?subtask)
+    (task-type ?task ?action-type)
+    (lisp-fun identity ?task ?subtask))
+ 
+  (<- (subtask-to-level ?task ?level ?action-type ?subtask)
+    (< 0 ?level)
+    (lisp-fun 1- ?level ?lower-level)
+    (subtask ?task ?lower-task)
+    (subtask-to-level ?lower-task ?lower-level ?action-type ?subtask))
   ;;; Transformation utils ;;;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -354,25 +391,38 @@
     (task-fetching-action ?top-level-name ?first-path ?_ ?first-fetching-desig)
     (task-delivering-action ?top-level-name ?first-path ?_ ?first-delivering-desig))
 
-  (<- (task-transporting-with-tray  (?first-delivering-path ?first-delivering-desig)
-                                    (?second-delivering-path ?second-delivering-desig))
+  (<- (task-transporting-with-tray (?delivering-path))
     (top-level-name ?top-level-name)
     (top-level-path ?path)
     (location-distance-threshold ?dist-threshold)
-    (task-transporting-action ?top-level-name ?path ?second-task ?_)
-    (subtask ?parent ?second-task)
-    (subtask ?parent ?first-task)
-    (not (== ?second-task ?first-task))
-    (without-replacement ?parent)
-    (task-full-path ?first-task ?first-path)
-    (task-transporting-action ?top-level-name ?first-path ?first-task ?_)
-    (task-full-path ?second-task ?second-path)
-    (task-location-description-equal ?first-task ?second-task)
-    (task-targets-nearby ?first-task ?second-task ?dist-threshold)
-    (task-delivering-action ?top-level-name ?first-path ?first-delivering-task ?first-delivering-desig)
-    (task-full-path ?first-delivering-task ?first-delivering-path)
-    (task-delivering-action ?top-level-name ?second-path ?second-delivering-task ?second-delivering-desig)
-    (task-full-path ?second-delivering-task ?second-delivering-path))
+    (subtask-depth ?depth)
+    (task-of-path ?path ?task)
+    (bagof
+     ?transp
+     (subtask-to-level ?task ?depth :transporting ?transp)
+     ?transp-task)
+    (member ?one ?transp-task)
+    (member ?two ?transp-task)
+    (not (== ?one ?two))
+    (without-replacement ?one)
+    (task-location-description-equal ?one ?two)
+    (task-targets-nearby ?one ?two ?dist-threshold)
+    (task-full-path ?one ?one-path)
+    (task-delivering-action ?top-level-name ?one-path ?delivering-task ?_)
+    (task-full-path ?delivering-task ?delivering-path))    
+
+  (<- (task-transporting-with-tray-other-deliveries ?first-delivering-path (?other-path))
+    (top-level-name ?top-level-name)
+    (top-level-path ?path)
+    (location-distance-threshold ?dist-threshold)
+    (task-of-path ?first-delivering-path ?task)
+    (parent+ ?task ?task-transport)
+    (task-type ?task-transport :transporting)
+    (task-sibling ?task-transport ?others)
+    (task-type ?others :transporting)
+    (task-full-path ?others ?others-path)
+    (task-delivering-action ?top-level-name ?others-path ?other-delivering-task ?_)
+    (task-full-path ?other-delivering-task ?other-path))
   
   (<- (task-transporting-from-fridge (?navigate-action ?accessing-path) ?closing-path)
     (top-level-name ?top-level-name)
