@@ -30,6 +30,13 @@
 
 (in-package :plt)
 
+(register-transformation-rule both-hands-transporting-rule
+                              '(task-transporting-siblings ?first-transport ?second-transport))
+(register-transformation-rule stacking-rule
+                              '(task-transporting-with-tray ?last-path))
+(register-transformation-rule environment-rule
+                              '(task-transporting-from-fridge ?action ?open-path ?close-path))
+
 (defun both-hands-transporting-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
   (roslisp:ros-info (plt) "Applying BOTH-HANDS-TRANSPORTING-RULE to top-level-plan ~a." top-level-name)
   (destructuring-bind

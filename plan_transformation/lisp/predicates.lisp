@@ -424,7 +424,7 @@
     (task-delivering-action ?top-level-name ?others-path ?other-delivering-task ?_)
     (task-full-path ?other-delivering-task ?other-path))
   
-  (<- (task-transporting-from-fridge (?navigate-action ?accessing-path) ?closing-path)
+  (<- (task-transporting-from-fridge ?navigate-action ?accessing-path ?closing-path)
     (top-level-name ?top-level-name)
     (top-level-path ?path)
     (top-level-task ?top-level-name ?root)

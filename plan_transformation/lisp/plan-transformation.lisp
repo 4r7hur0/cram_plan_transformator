@@ -55,14 +55,17 @@
         (setf raw-bindings (prolog (gethash k *transformation-rules*)))
         (when raw-bindings
           (push `(,k . ,raw-bindings) applicable-rules))))
-    (roslisp:ros-info (plt) "Following rules are applicable:")
-    (loop for i to (1- (length applicable-rules)) do
-      (roslisp:ros-info (plt) "~a: ~a" i (car (nth i applicable-rules))))
-    (roslisp:ros-info (plt) "Type the rule number to apply:")
-    (let ((choice (read)))
-      (if (and (typep choice 'integer)
-               (nth choice applicable-rules))
-          (funcall (car (nth choice applicable-rules)) (cdr (nth choice applicable-rules)))
-          (roslisp:ros-info (plt) "Invalid number ~a" choice)))))
+    (if applicable-rules
+        (progn
+          (roslisp:ros-info (plt) "Following rules are applicable:")
+          (loop for i to (1- (length applicable-rules)) do
+            (roslisp:ros-info (plt) "~a: ~a" i (car (nth i applicable-rules))))
+          (roslisp:ros-info (plt) "Type the rule number to apply:")
+          (let ((choice (read)))
+            (if (and (typep choice 'integer)
+                     (nth choice applicable-rules))
+                (funcall (car (nth choice applicable-rules)) (cdr (nth choice applicable-rules)))
+                (roslisp:ros-info (plt) "Invalid number ~a" choice))))
+        (roslisp:ros-info (plt) "No rule applicable. Check the predicates and/or enable other rules."))))
       
 
