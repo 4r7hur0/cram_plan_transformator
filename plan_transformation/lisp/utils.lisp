@@ -47,10 +47,33 @@
    (cdr (car (direct-child
               (cpl:get-top-level-task-tree top-level-name))))))
 
-;; (defgeneric direct-child (node)
-;;   (:documentation "Returns only the direct children of the node")
-;;   (:method ((node cpl:task-tree-node))
-;;     (cpl:task-tree-node-children node)))
+(defgeneric direct-child (node)
+  (:documentation "Returns only the direct children of the node")
+  (:method ((node cpl:task-tree-node))
+    (cpl:task-tree-node-children node)))
+
+(defun reset-scene (&optional (top-level-name nil) (random nil))
+  (btr:detach-all-objects (btr:get-robot-object))
+   (btr-utils:kill-all-objects)
+  (when (eql cram-projection:*projection-environment*
+             'cram-pr2-projection::pr2-bullet-projection-environment)
+    (if random
+        (spawn-objects-on-sink-counter-randomly)
+        (spawn-objects-on-sink-counter)))
+  (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
+  (initialize-or-finalize)
+  (let ((robot-urdf
+          (cl-urdf:parse-urdf
+           (roslisp:get-param "robot_description"))))
+    (prolog:prolog
+     `(and (btr:bullet-world ?world)
+           (cram-robot-interfaces:robot ?robot)
+           (assert (btr:object ?world :urdf ?robot ((0 0 0) (0 0 0 1)) :urdf ,robot-urdf))
+           (cram-robot-interfaces:robot-arms-parking-joint-states ?robot ?joint-states)
+           (assert (btr:joint-state ?world ?robot ?joint-states))
+           (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0)))))))
+  (when top-level-name
+    (cpl-impl::remove-top-level-task-tree top-level-name)))
 
 (defun tray-transporting-action ()
   (let* ((?tray-obj (desig:an object
@@ -75,15 +98,34 @@
                           (target ?delivering-location)
                           (retract-arms nil)))) action))
 (defun search-tray-pose ()
-  (pr2-proj:with-simulated-robot
-    (let* ((tray-obj (perform (an action
+  (let* ((tray-obj (perform (an action
                                   (type searching)
                                   (object (an object (type :tray)))
                                   (location (a location
                                                (on "CounterTop")
                                                (name "iai_kitchen_sink_area_counter_top")
-                                               (side right)))))))
-      (cadr (assoc :pose (desig-prop-value tray-obj :pose))) )))
+                                               (side right))))))
+         (rpos (btr:pose (btr:object btr:*current-bullet-world* 'cram-pr2-description:pr2)))
+         (tpos (cadr (assoc :pose (desig-prop-value tray-obj :pose)))))
+    (cl-tf:pose->pose-stamped
+     "map"
+     0.0
+     (cl-tf:transform (cl-tf:pose->transform rpos) tpos))))
+
+(defun find-position-on-tray-for-item (item-type &optional (tray-pose nil))
+  (let ((tray-pose (if tray-pose tray-pose (search-tray-pose))))
+    (destructuring-bind
+        ((x y z) (ax ay az aw))
+        (alexandria:assoc-value *tray-pose-transforms* item-type)
+      (cl-tf:make-pose-stamped
+       "map" 0.0
+       (cl-tf:origin
+        (cl-tf:transform
+         (cl-tf:make-transform (cl-tf:make-3d-vector x y z)
+                               (cl-tf:make-identity-rotation))
+         tray-pose))
+       (cl-tf:make-quaternion ax ay az aw)))))
+  
 
 ;; (defun tasks-with-nearby-location (&optional (top-level-name :top-level)
 ;;                                      (action-type :transporting-from-container))
