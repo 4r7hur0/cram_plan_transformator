@@ -52,9 +52,28 @@
   (:method ((node cpl:task-tree-node))
     (cpl:task-tree-node-children node)))
 
+(defun flatten-task-tree-broad (task &optional (tree '()) (children '()))
+  "Retruns the task tree as list of all tasks like `cpl:flatten-task-tree'
+but sorted in broad first, not depth first."
+  (if (and task (not tree) (not children))
+      (flatten-task-tree-broad nil (list task) (list task))
+      (let ((childs (mapcar #'cdr (reduce #'append (mapcar #'cpl:task-tree-node-children children)))))
+        (if childs
+            (flatten-task-tree-broad nil (append tree childs) childs)
+            tree))))
+
+(defun failed-tasks (top-task)
+  (let ((predicate
+          (lambda (node)
+            (cpl:task-failed-p (cpl:code-task (cpl:task-tree-node-code node)))))
+        (all-tasks (flatten-task-tree-broad top-task)))
+    (loop for node in all-tasks
+           when (funcall predicate node)
+             collect node)))
+
 (defun reset-scene (&optional (top-level-name nil) (random nil))
   (btr:detach-all-objects (btr:get-robot-object))
-   (btr-utils:kill-all-objects)
+  (btr-utils:kill-all-objects)
   (when (eql cram-projection:*projection-environment*
              'cram-pr2-projection::pr2-bullet-projection-environment)
     (if random

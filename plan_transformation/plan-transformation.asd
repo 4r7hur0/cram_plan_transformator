@@ -86,6 +86,7 @@
      (:file "costmaps" :depends-on ("package"))
      (:file "designators" :depends-on ("package"))
      (:file "projection-poses" :depends-on ("package"))
+     (:file "evaluation" :depends-on ("package"))
      (:file "predicates" :depends-on ("package" "projection-poses" "costmaps"))
      (:file "plans" :depends-on ("package" "utils" "designators"))
      (:file "top-level-plans" :depends-on ("package" "projection-poses" "utils" "plans" "plan-transformation"))
