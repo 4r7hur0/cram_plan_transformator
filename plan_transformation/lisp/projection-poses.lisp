@@ -55,7 +55,7 @@
   '((:breakfast-cereal . ((1.3 1.0 0.95) (0 0 0 1)))
     (:cup . ((1.35 0.7 0.9) (0 0 0 1)))
     (:bowl . ((1.4 0.8 0.97) (0 0 0 1)))
-    (:spoon . ((1.4 0.4 0.85) (0 0 0 1)))
+    (:spoon . ((1.4 0.35 0.85) (0 0 0 1)))
     (:milk . ((1.3 0.50 0.95) (0 0 0 1)))
     (:tray . ((1.45 0.0 0.94) (0 0 -0.7071 0.7071)))
     (:tray-base . ((1.45 0.0 0.85) (0 0 0 1)))))
@@ -103,7 +103,7 @@
   (let ((object-types '(:tray-base
                         :tray
                         :breakfast-cereal
-                        ;; :spoon
+                        :spoon
                         :milk
                         :cup
                         ;; :bowl
@@ -165,7 +165,25 @@
                            :cup
                            ;; :bowl
                         )))
-           (mapcar #'move-into-fridge object-types))))
+      (mapcar #'move-into-fridge object-types))))
+
+(defun spawn-objects-mixed ()
+  (btr-utils:kill-all-objects)
+  (btr:add-objects-to-mesh-list "cram_pr2_pick_place_demo")
+  (btr:detach-all-objects (btr:get-robot-object))
+  (flet ((move-into-fridge (type stay-on-sink)
+           (let ((name (intern (format nil "~a-1" type) :keyword)))
+             (btr-utils:spawn-object name type :pose (cdr (assoc type *object-spawning-poses*)))
+             (unless (member type stay-on-sink)
+               (setf (btr::mass (car (btr:rigid-bodies (btr:object btr:*current-bullet-world* name)))) 0.0)
+               (btr-utils:move-object name (cdr (assoc type *object-spawning-in-container-poses*)))))))
+    
+    (let* ((object-types '(:breakfast-cereal :spoon :milk :cup
+                           :tray-base :tray
+                           ;; :bowl
+                           ))
+           (stay-on-sink '(:breakfast-cereal :spoon :tray-base :tray)))
+           (mapcar (alexandria:rcurry #'move-into-fridge stay-on-sink) object-types))))
 
 ;; (defun go-to-sink-or-island (&optional (sink-or-island :sink))
 ;;   (let ((?navigation-goal (ecase sink-or-island

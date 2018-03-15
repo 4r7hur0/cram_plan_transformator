@@ -34,6 +34,7 @@
 
 (defvar *transformation-rules* (make-hash-table :test 'eq))
 (defvar *disabled-transformation-rules* '())
+(defvar *rule-priority* '())
 
 (defmacro register-transformation-rule (name predicate)
   `(setf (gethash ',name *transformation-rules*)
@@ -46,6 +47,16 @@
   `(setf *disabled-transformation-rules*
          (remove ',name *disabled-transformation-rules*)))
 
+(defun prioritize-rule (superior-rule inferior-rule)
+  (if (member superior-rule *rule-priority*)
+      (when (or (not (member inferior-rule *rule-priority*))
+                (and (member inferior-rule *rule-priority*)
+                     (< (position inferior-rule *rule-priority*)
+                        (position superior-rule *rule-priority*))))
+        (setf *rule-priority* (remove inferior-rule *rule-priority*))
+        (push inferior-rule (cdr (nthcdr (position superior-rule *rule-priority*) *rule-priority*))))
+      (dolist (rule (list inferior-rule superior-rule)) (pushnew rule *rule-priority*))))
+
 (defun apply-rules ()
   (let ((applicable-rules '())
         (raw-bindings))
@@ -57,15 +68,24 @@
           (push `(,k . ,raw-bindings) applicable-rules))))
     (if applicable-rules
         (progn
-          (roslisp:ros-info (plt) "Following rules are applicable:")
-          (loop for i to (1- (length applicable-rules)) do
-            (roslisp:ros-info (plt) "~a: ~a" i (car (nth i applicable-rules))))
-          (roslisp:ros-info (plt) "Type the rule number to apply:")
-          (let ((choice (read)))
-            (if (and (typep choice 'integer)
-                     (nth choice applicable-rules))
-                (funcall (car (nth choice applicable-rules)) (cdr (nth choice applicable-rules)))
-                (roslisp:ros-info (plt) "Invalid number ~a" choice))))
+          (let* ((most-important-rule
+                   (car (remove nil (mapcar (alexandria:rcurry #'find (mapcar #'car applicable-rules))
+                                            *rule-priority*))))
+                 (rule-to-apply (if most-important-rule
+                                    (find most-important-rule applicable-rules :key #'car)
+                                    (car applicable-rules))))
+            (funcall (car rule-to-apply) (cdr rule-to-apply))))
+        
+        ;; (roslisp:ros-info (plt) "Following rules are applicable:")
+        ;; (loop for i to (1- (length applicable-rules)) do
+        ;;   (roslisp:ros-info (plt) "~a: ~a" i (car (nth i applicable-rules))))
+        ;; (roslisp:ros-info (plt) "Type the rule number to apply:")
+        ;; (let ((choice (read)))
+        ;;   (if (and (typep choice 'integer)
+        ;;            (nth choice applicable-rules))
+        ;;       (funcall (car (nth choice applicable-rules)) (cdr (nth choice applicable-rules)))
+        ;;       (roslisp:ros-info (plt) "Invalid number ~a" choice)))
+        
         (roslisp:ros-info (plt) "No rule applicable. Check the predicates and/or enable other rules."))))
       
 

@@ -71,6 +71,23 @@ but sorted in broad first, not depth first."
            when (funcall predicate node)
              collect node)))
 
+(defun action-tasks-of-type (task type)
+  (let* ((subtasks (flatten-task-tree-broad task))
+         (filter-predicate
+           (lambda (node)
+             (and (cpl:task-tree-node-code node)
+                  (cpl:code-parameters
+                   (cpl:task-tree-node-code node))
+                  (cpl:code-sexp
+                   (cpl:task-tree-node-code node))
+                  (eq (car (cpl:code-sexp (cpl:task-tree-node-code node)))
+                      'perform)
+                  (eq (desig-prop-value
+                       (car (cpl:code-parameters (cpl:task-tree-node-code node)))
+                       :type)
+                      type)))))
+    (remove-if-not filter-predicate subtasks)))
+
 (defun reset-scene (&optional (top-level-name nil) (random nil))
   (btr:detach-all-objects (btr:get-robot-object))
   (btr-utils:kill-all-objects)
@@ -146,27 +163,6 @@ but sorted in broad first, not depth first."
                                (cl-tf:make-identity-rotation))
          tray-pose))
        (cl-tf:make-quaternion ax ay az aw)))))
-  
-
-;; (defun tasks-with-nearby-location (&optional (top-level-name :top-level)
-;;                                      (action-type :transporting-from-container))
-;;   (let* ((transporting-tasks
-;;            (cut:force-ll
-;;             (prolog:prolog `(task-specific-action ,top-level-name ((demo-fridge)) ,action-type ?task ?desig))))
-;;         (match)
-;;         (matching-pairs (list)))
-;;     (loop while transporting-tasks
-;;           do (when (setf match
-;;                          (find-if (lambda (x) (location-desig-nearby
-;;                                                (desig:desig-prop-value 
-;;                                                 (cut:var-value '?desig (car transporting-tasks)) :located-at)
-;;                                                (desig:desig-prop-value 
-;;                                                 (cut:var-value '?desig x) :located-at)))
-;;                                   (cdr transporting-tasks)))
-;;                (push (list (car transporting-tasks) match) matching-pairs))
-;;              (setf transporting-tasks (remove match (cdr transporting-tasks)))) matching-pairs))
-
-
 
 (defun get-location-from-task (task)
   (desig:description
@@ -180,28 +176,6 @@ but sorted in broad first, not depth first."
 (defun location-desig-dist (desig-1 desig-2)
   (cl-tf:v-dist (cl-tf:origin (desig-prop-value desig-1 :pose))
                 (cl-tf:origin (desig-prop-value desig-2 :pose))))
-
-;; (defun tasks-with-matching-location (&optional (path '((demo-random)))
-;;                                        (top-level-name :top-level)
-;;                                        (action-type :transporting))
-;;   (let* ((transporting-tasks
-;;            (cut:force-ll
-;;             (prolog:prolog `(task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))
-;;         (match)
-;;         (matching-pairs (list)))
-;;     (loop while transporting-tasks
-;;           do (when (setf match
-;;                          (find-if (lambda (x) (equalp (get-location-from-task (car transporting-tasks))
-;;                                                       (get-location-from-task x))) (cdr transporting-tasks)))
-;;                (push (list (car transporting-tasks) match) matching-pairs))
-;;              (setf transporting-tasks (remove match (cdr transporting-tasks))))
-;;     matching-pairs))
-
-;; (defun action-designator-under-path (path action-type &optional (top-level-name :top-level))
-;;   (alexandria:assoc-value
-;;    (car (cut:force-ll 
-;;          (prolog:prolog `(and
-;;                           (task-specific-action ,top-level-name ,path ,action-type ?task ?desig))))) '?desig))
 
 (defun get-kitchen-urdf ()
   (slot-value

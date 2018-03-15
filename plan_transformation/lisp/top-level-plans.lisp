@@ -48,6 +48,14 @@
     (demo-fridge))
   (cet:disable-fluent-tracing))
 
+(defun test-mixed (&optional (reset t))
+  (cet:enable-fluent-tracing)
+  (when reset
+    (cpl-impl::remove-top-level-task-tree *top-level-name*))
+  (pr2-proj:with-simulated-robot
+    (demo-mixed))
+  (cet:disable-fluent-tracing))
+
 (cpl:def-cram-function initialize-or-finalize ()
   (cpl:with-failure-handling
       ((cpl:plan-failure (e)
@@ -79,10 +87,11 @@
         (spawn-objects-on-sink-counter)))
   (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
   (initialize-or-finalize)
-  (let ((list-of-objects '(:breakfast-cereal
+  (let ((list-of-objects '(:spoon
+                           :breakfast-cereal
                            :milk
                            :cup
-                           ;; :bowl  :tray :spoon
+                            ;; :bowl  :tray 
                            )))
     (dolist (?object-type list-of-objects)
       (let* ((?cad-model
@@ -183,8 +192,8 @@
 
         (cpl:with-failure-handling
             ((common-fail:high-level-failure (e)
-                                             (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
-                                             (return)))
+               (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
+               (return)))
           (let* ((?not-tray (not (eq ?object-type :tray))))
             
             (exe:perform (desig:an action
@@ -198,6 +207,83 @@
   (initialize-or-finalize)
   cpl:*current-path*)
 
+(cpl:def-cram-function demo-mixed ()
+  (btr:detach-all-objects (btr:get-robot-object))
+  (btr-utils:kill-all-objects)
+  (when (eql cram-projection:*projection-environment*
+             'cram-pr2-projection::pr2-bullet-projection-environment)
+    (spawn-objects-mixed))
+  (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
+  (initialize-or-finalize)
+  (let ((list-of-sink-objects '(:spoon :breakfast-cereal))
+        (list-of-fridge-objects '(:milk :cup)))
+    (dolist (?object-type (append list-of-sink-objects
+                                  list-of-fridge-objects))
+      (let* ((?cad-model
+               (cdr (assoc ?object-type *object-cad-models*)))
+             (?object-to-fetch
+               (desig:an object
+                         (type ?object-type)
+                         (desig:when ?cad-model
+                           (cad-model ?cad-model))))
+             (?fetching-location
+               (desig:a location
+                        (on "CounterTop")
+                        (name "iai_kitchen_sink_area_counter_top")))
+             (?container-fetch-pose
+               (cl-transforms-stamped:make-pose-stamped
+                "base_footprint" 0.0
+                (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
+                (cl-transforms:make-identity-rotation)))
+             (?fetching-container-location
+               (desig:a location
+                        (pose ?container-fetch-pose)))
+             (?container-pose
+               (cl-transforms-stamped:pose->pose-stamped
+                "map" 0.0
+                (cram-bullet-reasoning:ensure-pose
+                 '((0.8 -0.8 0) (0 0 0 1)))))
+             (?container-location
+               (desig:a location
+                        (pose ?container-pose)))
+             (?placing-target-pose
+               (cl-transforms-stamped:pose->pose-stamped
+                "map" 0.0
+                (if (not (eq ?object-type :tray))
+                    (cram-bullet-reasoning:ensure-pose
+                     (cdr (assoc ?object-type *object-placing-poses*)))
+                    (cram-bullet-reasoning:ensure-pose
+                     (cdr (assoc ?object-type *object-placing-poses*))))))
+             (?arm-to-use
+               (cdr (assoc ?object-type *object-grasping-arms*)))
+             (?delivering-location
+               (desig:a location
+                        (pose ?placing-target-pose)))
+             (?isnt-tray (not (eq ?object-type :tray))))
+
+        (cpl:with-failure-handling
+            ((common-fail:high-level-failure (e)
+               (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
+               (return)))
+          (if (member ?object-type list-of-sink-objects)
+              (exe:perform (an action
+                               (type transporting)
+                               (object ?object-to-fetch)
+                               (arm ?arm-to-use)
+                               (location ?fetching-location)
+                               (target ?delivering-location)
+                               (retract-arms ?isnt-tray)))
+              (when (member ?object-type list-of-fridge-objects)
+                (exe:perform (an action
+                                 (type transporting-from-container)
+                                 (object ?object-to-fetch)
+                                 (located-at ?container-location)
+                                 (arm right)
+                                 (location ?fetching-container-location)
+                                 (target ?delivering-location)
+                                 (retract-arms ?isnt-tray)))))))))
+        (initialize-or-finalize)
+        cpl:*current-path*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OLD FUNCTIONS BELOW ;;;
