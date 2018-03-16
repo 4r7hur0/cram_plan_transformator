@@ -65,14 +65,24 @@ but sorted in broad first, not depth first."
 (defun failed-tasks (top-task)
   (let ((predicate
           (lambda (node)
-            (cpl:task-failed-p (cpl:code-task (cpl:task-tree-node-code node)))))
+            (and (cpl:task-tree-node-code node)
+                 (cpl:code-task (cpl:task-tree-node-code node))
+                 (cpl:task-failed-p (cpl:code-task (cpl:task-tree-node-code node))))))
         (all-tasks (flatten-task-tree-broad top-task)))
     (loop for node in all-tasks
            when (funcall predicate node)
              collect node)))
 
 (defun action-tasks-of-type (task type)
-  (let* ((subtasks (flatten-task-tree-broad task))
+  (tasks-of-type task type 'action-designator))
+
+(defun motion-tasks-of-type (task type)
+  (tasks-of-type task type 'motion-designator))
+
+(defun tasks-of-type (task type desig-class)
+  (let* ((subtasks (case desig-class
+                     (action-designator (flatten-task-tree-broad task))
+                     (motion-designator (cpl:flatten-task-tree task))))
          (filter-predicate
            (lambda (node)
              (and (cpl:task-tree-node-code node)
@@ -85,7 +95,10 @@ but sorted in broad first, not depth first."
                   (eq (desig-prop-value
                        (car (cpl:code-parameters (cpl:task-tree-node-code node)))
                        :type)
-                      type)))))
+                      type)
+                  (eq (type-of
+                       (car (cpl:code-parameters (cpl:task-tree-node-code node))))
+                      desig-class)))))
     (remove-if-not filter-predicate subtasks)))
 
 (defun reset-scene (&optional (top-level-name nil) (random nil))

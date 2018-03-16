@@ -162,7 +162,7 @@
              ;;            (side right)))
              (?container-fetch-pose
                (cl-transforms-stamped:make-pose-stamped
-                "base_footprint" 0.0
+                "map" 0.0
                 (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
                 (cl-transforms:make-identity-rotation)))
              (?fetching-container-location
@@ -232,7 +232,7 @@
                         (name "iai_kitchen_sink_area_counter_top")))
              (?container-fetch-pose
                (cl-transforms-stamped:make-pose-stamped
-                "base_footprint" 0.0
+                "map" 0.0
                 (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
                 (cl-transforms:make-identity-rotation)))
              (?fetching-container-location

@@ -74,6 +74,7 @@
                                                  &optional
                                                  (?retract-arms t)
                                                  (?joint-name "iai_fridge_door_joint"))
+    
   (exe:perform 
      (desig:an action
                (type accessing-container)
