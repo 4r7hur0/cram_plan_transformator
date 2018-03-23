@@ -32,28 +32,28 @@
 
 
 
-(defun test-stacking (&optional (reset t))
+(defun test-collect-from-sink (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
     (cpl-impl::remove-top-level-task-tree *top-level-name*))
   (pr2-proj:with-simulated-robot
-    (demo-stacking nil))
+    (collect-from-sink nil))
   (cet:disable-fluent-tracing))
 
-(defun test-fridge (&optional (reset t))
+(defun test-collect-from-fridge (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
     (cpl-impl::remove-top-level-task-tree *top-level-name*))
   (pr2-proj:with-simulated-robot
-    (demo-fridge))
+    (collect-from-fridge))
   (cet:disable-fluent-tracing))
 
-(defun test-mixed (&optional (reset t))
+(defun test-collect-mixed (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
     (cpl-impl::remove-top-level-task-tree *top-level-name*))
   (pr2-proj:with-simulated-robot
-    (demo-mixed))
+    (collect-mixed))
   (cet:disable-fluent-tracing))
 
 (cpl:def-cram-function initialize-or-finalize ()
@@ -77,7 +77,7 @@
       (exe:perform (desig:an action (type looking) (direction forward))))))
 
 
-(cpl:def-cram-function demo-stacking (&optional (random nil))
+(cpl:def-cram-function collect-from-sink (&optional (random nil))
   (btr:detach-all-objects (btr:get-robot-object))
   (btr-utils:kill-all-objects)
   (when (eql cram-projection:*projection-environment*
@@ -136,7 +136,7 @@
   (initialize-or-finalize)
   cpl:*current-path*)
 
-(cpl:def-cram-function demo-fridge ()
+(cpl:def-cram-function collect-from-fridge ()
   (btr:detach-all-objects (btr:get-robot-object))
   (btr-utils:kill-all-objects)
   (spawn-objects-into-fridge)
@@ -163,7 +163,7 @@
              (?container-fetch-pose
                (cl-transforms-stamped:make-pose-stamped
                 "map" 0.0
-                (cl-transforms:make-3d-vector 1.3 -0.6 1.0)
+                (cl-transforms:make-3d-vector 1.3 -0.7 1.0)
                 (cl-transforms:make-identity-rotation)))
              (?fetching-container-location
                (desig:a location
@@ -207,7 +207,7 @@
   (initialize-or-finalize)
   cpl:*current-path*)
 
-(cpl:def-cram-function demo-mixed ()
+(cpl:def-cram-function collect-mixed ()
   (btr:detach-all-objects (btr:get-robot-object))
   (btr-utils:kill-all-objects)
   (when (eql cram-projection:*projection-environment*

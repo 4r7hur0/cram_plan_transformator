@@ -45,14 +45,16 @@
     (declare (ignore key other-key))
     (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-1)
                                  #'(lambda (&rest desig)
-                                     (declare (ignore desig))
-                                     (exe:perform fetch-action))
+                                     (exe:perform fetch-action)
+                                     )
                                  path-1
                                  (cpl-impl::get-top-level-task-tree top-level-name))
     (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-2)
                                  #'(lambda (&rest desig)
                                      (exe:perform (car desig))
-                                     (exe:perform deliver-action))
+                                     (exe:perform deliver-action)
+                                     
+                                     )
                                  path-2
                                  (cpl-impl::get-top-level-task-tree top-level-name))))
 
@@ -106,7 +108,8 @@
 
 (defun environment-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
   (roslisp:ros-info (plt) "Applying ENVIRONMENT-RULE to top-level-plan ~a." top-level-name)
-  (let* ((bindings (cut:force-ll lazy-bindings))
+  (let* ((bindings (remove-duplicates (cut:force-ll lazy-bindings)
+                                      :test #'string= :key #'write-to-string))
          (last-action (pop bindings))
          (bindings (reverse bindings))
          (first-action (pop bindings)))

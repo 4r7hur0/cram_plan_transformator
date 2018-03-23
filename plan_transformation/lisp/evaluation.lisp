@@ -37,6 +37,7 @@
 
 (defvar *distributed-actions* (make-hash-table :test 'equal))
 (defvar *motion-cost* (make-hash-table :test 'equal))
+(defvar *failure-counter* 0)
 
 (defparameter *home-pose-right*
   (cl-tf:make-pose-stamped
@@ -68,17 +69,22 @@
     (roslisp-utilities:startup-ros)
     (setf *perform-counter* (make-hash-table :test 'equal))
     (apply function (car args) (cdr args))
-    (store-current-run-data))
-  (store-after-whole-testrun))
+    (if (failed-tasks-of-type
+         (cpl:get-top-level-task-tree *top-level-name*)
+         :fetching :delivering)
+        (incf *failure-counter*)
+        (store-current-run-data)))
+  (store-after-whole-testrun times))
 
 (defun reset-before-whole-testrun ()
-  (setf *eval-list* nil)
+  (setf *failure-counter* 0)
+  (setf *action-list* '())
   (setf *motion-cost* (make-hash-table :test 'equal))
   (setf *distributed-actions* (make-hash-table :test 'equal)))
 
-(defun store-after-whole-testrun ()
+(defun store-after-whole-testrun (times)
   (push-data-to-action-distribution-table)
-  (push (list *distributed-actions* *motion-cost*) *all-data-store*))
+  (push (list *distributed-actions* *motion-cost* times *failure-counter*) *all-data-store*))
 
 (defun store-current-run-data ()
   (push *perform-counter* *action-list*)
@@ -93,16 +99,6 @@
     (mapcar (lambda (table)
               (push (gethash key table) (gethash key *distributed-actions*)))
             *action-list*)))
-
-(defun calculate-deviations (table1 table2)
-  (loop for key being the hash-keys in table1 do
-    (setf (gethash key *deviation-table*)
-          (loop for i to (1- (length (gethash key table1)))
-                collect (let ((val1 (nth i (gethash key table1)))
-                              (val2 (nth i (gethash key table2))))
-                          (if (and val1 val2)
-                              (- val1 val2)
-                              0))))))
             
 (defun calculate-overall-deviation (&optional (dev-table *deviation-table*))
   (loop for key being the hash-keys in dev-table
@@ -145,7 +141,7 @@
            (prolog '(and
                      (top-level-name ?top-level-name)
                      (top-level-path ?path)
-                     (task-specific-motion ?top-level-name ?path :moving-tcp ?_ ?desig))))
+                     (task-specific-motion ?top-level-name ?path :moving-tcp ?task ?desig))))
          (all-gripper-motions
            (sort (mapcar (alexandria:rcurry #'alexandria:assoc-value '?desig)
                          (cut:force-ll lazy-gripper-motions))
@@ -180,7 +176,8 @@
                       (top-level-path ?path)
                       (task-specific-action ?top-level-name ?path :closing-container ?closing ?_))))))
 
-    (* (length (append accessing-actions closing-actions)) 5)))
+    (+ (* (length accessing-actions) 10.4)
+       (* (length closing-actions) 5.2))))
   
 (defun estimate-distance-between-pose-stamped (pose-stamped-1 pose-stamped-2
                                                &optional
@@ -202,10 +199,34 @@
            (cl-transforms:orientation pose-stamped-1)
            (cl-transforms:orientation pose-stamped-2)))))))
 
+(defun calculate-deviations (table1 table2)
+  (loop for key being the hash-keys in table1 do
+    (setf (gethash key *deviation-table*)
+          (loop for i to (1- (length (gethash key table1)))
+                collect (let ((val1 (nth i (gethash key table1)))
+                              (val2 (nth i (gethash key table2))))
+                          (if (and val1 val2)
+                              (- val1 val2)
+                              0))))))
+
+(defun calculate-mean-total-actions (table)
+  (float (reduce #'+ (loop for key being the hash-keys in table
+                           collect (alexandria:mean (gethash key table))))))
+
+(defun calculate-diff (list1 list2)
+  (let ((min-length (length (car (sort (list list1 list2) '< :key #'length)))))
+    (loop for i to (1- min-length)
+          collect (- (nth i list1) (nth i list2)))))
+
+(defun sum-squared-deviations (devs)
+  (- (reduce '+ (mapcar (alexandria:rcurry 'expt 2) devs))
+     (/ (expt (reduce '+ devs) 2) (length devs))))
+
+(defun variance (devs)
+  (/ (sum-squared-deviations devs) (1- (length devs))))
+
+(defun variance-distributed (devs)
+  (sqrt (/ (variance devs) (length devs))))
+
 (defun t-value (devs)
-  (let* ((sum-squared-deviations
-           (- (reduce '+ (mapcar (alexandria:rcurry 'expt 2) devs))
-              (/ (expt (reduce '+ devs) 2) (length devs))))
-         (variance (/ sum-squared-deviations (1- (length devs))))
-         (variance-distributed (sqrt (/ variance (length devs)))))
-    (/ (/ (reduce '+ devs) (length devs)) variance-distributed)))
+  (/ (/ (reduce '+ devs) (length devs)) (variance-distributed devs)))

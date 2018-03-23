@@ -73,6 +73,20 @@ but sorted in broad first, not depth first."
            when (funcall predicate node)
              collect node)))
 
+(defun failed-tasks-of-type (top-task &rest types)
+  (let ((predicate
+          (lambda (node)
+            (and (cpl:task-tree-node-code node)
+                 (cpl:code-task (cpl:task-tree-node-code node))
+                 (cpl:task-failed-p (cpl:code-task (cpl:task-tree-node-code node))))))
+        (all-tasks  (reduce #'append
+                            (mapcar (lambda (type)
+                                      (tasks-of-type top-task type 'action-designator))
+                                    types))))
+    (loop for node in all-tasks
+           when (funcall predicate node)
+             collect node)))
+
 (defun action-tasks-of-type (task type)
   (tasks-of-type task type 'action-designator))
 
