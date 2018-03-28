@@ -260,8 +260,9 @@
       (setf (gethash key (cadr new-table-tuple))
             (reduce #'append (mapcar (alexandria:compose (alexandria:curry #'gethash key) #'cadr)
                                      table-tuple))))
-    (setf (nth 2 new-table-tuple) (reduce #'+ (mapcar #'caddr table-tuple)))
-    (setf (nth 3 new-table-tuple) (reduce #'+ (mapcar #'cadddr table-tuple)))
+    (when (< 2 (apply #'min (mapcar #'length table-tuple)))
+      (setf (nth 2 new-table-tuple) (reduce #'+ (mapcar #'caddr table-tuple)))
+      (setf (nth 3 new-table-tuple) (reduce #'+ (mapcar #'cadddr table-tuple))))
     new-table-tuple))
 
 (defun eval-data->octave (table-tuple)
