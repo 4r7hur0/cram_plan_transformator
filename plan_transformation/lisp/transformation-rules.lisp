@@ -45,16 +45,14 @@
     (declare (ignore key other-key))
     (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-1)
                                  #'(lambda (&rest desig)
-                                     (exe:perform fetch-action)
-                                     )
+                                     (declare (ignore desig))
+                                     (exe:perform fetch-action))
                                  path-1
                                  (cpl-impl::get-top-level-task-tree top-level-name))
     (cpl-impl::replace-task-code '(BOTH-HANDS-TRANSFORM-2)
                                  #'(lambda (&rest desig)
                                      (exe:perform (car desig))
-                                     (exe:perform deliver-action)
-                                     
-                                     )
+                                     (exe:perform deliver-action))
                                  path-2
                                  (cpl-impl::get-top-level-task-tree top-level-name))))
 

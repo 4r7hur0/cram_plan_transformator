@@ -39,22 +39,8 @@
 (defvar *motion-cost* (make-hash-table :test 'equal))
 (defvar *failure-counter* 0)
 
-(defparameter *home-pose-right*
-  (cl-tf:make-pose-stamped
-   "base_footprint" 0.0
-   (cl-tf:make-3d-vector 0.25 -0.5 1.3)
-   (cl-tf:make-quaternion 0.0d0 0.0d0 0.15643446735208227d0 0.9876883402289764d0)))
-
-(defparameter *home-pose-left*
-  (cl-tf:make-pose-stamped
-   "base_footprint" 0.0
-   (cl-tf:make-3d-vector 0.25 0.5 1.3)
-   (cl-tf:make-quaternion 0.0d0 0.0d0 -0.15643446735208227d0 0.9876883402289764d0)))
-
-
-(defparameter *pre-action* nil)
-(defparameter *post-action* nil)
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Gather evaluation data ;;;
 (defmethod exe:generic-perform :around ((designator action-designator))
   "Wraps the generic perform call to count execution times."
   (let ((action-type (desig-prop-value designator :type)))
@@ -66,6 +52,7 @@
 (defun with-evaluation (times function &rest args)
   (reset-before-whole-testrun)
   (dotimes (c times)
+    (roslisp:ros-warn (evaluation) "Executing sample ~a of ~a from function ~a.~%" c times function)
     (roslisp-utilities:startup-ros)
     (setf *perform-counter* (make-hash-table :test 'equal))
     (apply function (car args) (cdr args))
@@ -99,10 +86,64 @@
     (mapcar (lambda (table)
               (push (gethash key table) (gethash key *distributed-actions*)))
             *action-list*)))
-            
+;;; Gather evalutaion data ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Data evaluation & t-test ;;;
 (defun calculate-overall-deviation (&optional (dev-table *deviation-table*))
   (loop for key being the hash-keys in dev-table
            collect (float (alexandria:mean (gethash key dev-table)))))
+
+
+(defun calculate-deviations (table1 table2)
+  (loop for key being the hash-keys in table1 do
+    (setf (gethash key *deviation-table*)
+          (loop for i to (1- (length (gethash key table1)))
+                collect (let ((val1 (nth i (gethash key table1)))
+                              (val2 (nth i (gethash key table2))))
+                          (if (and val1 val2)
+                              (- val1 val2)
+                              0))))))
+
+(defun calculate-mean-total-actions (table)
+  (float (reduce #'+ (loop for key being the hash-keys in table
+                           collect (alexandria:mean (gethash key table))))))
+
+(defun calculate-diff (list1 list2)
+  (let ((min-length (length (car (sort (list list1 list2) '< :key #'length)))))
+    (loop for i to (1- min-length)
+          collect (- (nth i list1) (nth i list2)))))
+
+(defun sum-squared-deviations (devs)
+  (- (reduce '+ (mapcar (alexandria:rcurry 'expt 2) devs))
+     (/ (expt (reduce '+ devs) 2) (length devs))))
+
+(defun variance (devs)
+  (/ (sum-squared-deviations devs) (1- (length devs))))
+
+(defun variance-distributed (devs)
+  (sqrt (/ (variance devs) (length devs))))
+
+(defun t-value (devs)
+  (/ (/ (reduce '+ devs) (length devs)) (variance-distributed devs)))
+;;; Data evaluation & t-test ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Goodness calculation ;;;
+(defparameter *home-pose-right*
+  (cl-tf:make-pose-stamped
+   "base_footprint" 0.0
+   (cl-tf:make-3d-vector 0.25 -0.5 1.3)
+   (cl-tf:make-quaternion 0.0d0 0.0d0 0.15643446735208227d0 0.9876883402289764d0)))
+
+(defparameter *home-pose-left*
+  (cl-tf:make-pose-stamped
+   "base_footprint" 0.0
+   (cl-tf:make-3d-vector 0.25 0.5 1.3)
+   (cl-tf:make-quaternion 0.0d0 0.0d0 -0.15643446735208227d0 0.9876883402289764d0)))
 
 (defun total-distance-navigated ()
   (let* ((lazy-motions
@@ -178,11 +219,9 @@
 
     (+ (* (length accessing-actions) 10.4)
        (* (length closing-actions) 5.2))))
-  
+
 (defun estimate-distance-between-pose-stamped (pose-stamped-1 pose-stamped-2
-                                               &optional
-                                                 (translational-weight 1.0)
-                                                 (rotational-weight 1.0))
+                                               &optional (translational-weight 1.0) (rotational-weight 1.0))
   "From Gaya"
   (assert pose-stamped-1)
   (assert pose-stamped-2)
@@ -198,35 +237,79 @@
           (cl-transforms:angle-between-quaternions
            (cl-transforms:orientation pose-stamped-1)
            (cl-transforms:orientation pose-stamped-2)))))))
+;;; Goodness calculation ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun calculate-deviations (table1 table2)
-  (loop for key being the hash-keys in table1 do
-    (setf (gethash key *deviation-table*)
-          (loop for i to (1- (length (gethash key table1)))
-                collect (let ((val1 (nth i (gethash key table1)))
-                              (val2 (nth i (gethash key table2))))
-                          (if (and val1 val2)
-                              (- val1 val2)
-                              0))))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Data export/import ;;;
+(defvar *action-order-sink*
+  '(:GOING :OPENING :LOOKING :TRANSPORTING :FETCHING :SEARCHING :NAVIGATING
+    :DETECTING :PICKING-UP :SETTING-GRIPPER :REACHING :GRIPPING :LIFTING
+    :DELIVERING :PLACING :PUTTING :RELEASING :RETRACTING))
+(defvar *eval-export-path* "/home/arthur/bachelor/evaluation/")
 
-(defun calculate-mean-total-actions (table)
-  (float (reduce #'+ (loop for key being the hash-keys in table
-                           collect (alexandria:mean (gethash key table))))))
+(defun merge-eval-data (&rest table-tuple)
+  (let ((new-table-tuple (list (make-hash-table :test #'equalp)
+                               (make-hash-table :test #'equalp)
+                               0 0)))
+    (loop for key being the hash-keys in (caar table-tuple) do
+      (setf (gethash key (car new-table-tuple))
+            (reduce #'append (mapcar (alexandria:compose (alexandria:curry #'gethash key) #'car)
+                                     table-tuple))))
+    (loop for key being the hash-keys in (cadar table-tuple) do
+      (setf (gethash key (cadr new-table-tuple))
+            (reduce #'append (mapcar (alexandria:compose (alexandria:curry #'gethash key) #'cadr)
+                                     table-tuple))))
+    (setf (nth 2 new-table-tuple) (reduce #'+ (mapcar #'caddr table-tuple)))
+    (setf (nth 3 new-table-tuple) (reduce #'+ (mapcar #'cadddr table-tuple)))
+    new-table-tuple))
 
-(defun calculate-diff (list1 list2)
-  (let ((min-length (length (car (sort (list list1 list2) '< :key #'length)))))
-    (loop for i to (1- min-length)
-          collect (- (nth i list1) (nth i list2)))))
+(defun eval-data->octave (table-tuple)
+  (let ((out "")
+        (row-string ""))
+    (flet ((format-table (table)
+             (loop for key being the hash-keys in table do
+               (setf row-string (write-to-string (gethash key table)))
+               (setf out (concatenate
+                          'string out (format nil "~a;" (subseq row-string 1 (1- (length row-string)))))))))
+      (format-table (car table-tuple))
+      (format-table (cadr table-tuple)))      
+    out))
 
-(defun sum-squared-deviations (devs)
-  (- (reduce '+ (mapcar (alexandria:rcurry 'expt 2) devs))
-     (/ (expt (reduce '+ devs) 2) (length devs))))
+(defun export-eval-data (table-tuple filename)
+  (let ((all-values (append (reverse (alexandria:hash-table-values (car table-tuple)))
+                            (reverse (alexandria:hash-table-values (cadr table-tuple))))))
+    (with-open-file (str (format nil (concatenate 'string *eval-export-path* "~a") filename)
+                         :direction :output
+                         :if-exists :supersede
+                         :if-does-not-exist :create)  
+      (mapcar (alexandria:curry #'format str "~a~%")
+              all-values))))
 
-(defun variance (devs)
-  (/ (sum-squared-deviations devs) (1- (length devs))))
-
-(defun variance-distributed (devs)
-  (sqrt (/ (variance devs) (length devs))))
-
-(defun t-value (devs)
-  (/ (/ (reduce '+ devs) (length devs)) (variance-distributed devs)))
+(defun import-eval-data (filename &optional key-order)
+  (let ((file-list '())
+        (buffer ""))
+    (mapcar (lambda (line)
+              (setf buffer (concatenate 'string buffer line))
+              (when (string= ")" (subseq line (1- (length line)) (length line)))
+                (setf file-list
+                      (append file-list
+                              (list (with-input-from-string (s buffer) (read s)))))
+                (setf buffer "")))
+            (with-open-file (stream (concatenate 'string *eval-export-path* filename))
+              (loop for line = (read-line stream nil)
+                    while line
+                    collect line)))
+    (if key-order
+        (let ((table-tuple (list (make-hash-table :test #'equal)
+                                 (make-hash-table :test #'equal))))
+          (loop for i to (1- (length key-order)) do
+            (setf (gethash (nth i key-order) (car table-tuple))
+                  (nth i file-list)))
+          (setf (gethash :container (cadr table-tuple)) (car (reverse file-list)))
+          (setf (gethash :gripper-movement (cadr table-tuple)) (cadr (reverse file-list)))
+          (setf (gethash :navigated (cadr table-tuple)) (caddr (reverse file-list)))
+          table-tuple)
+        file-list)))
+;;; Data export/import ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
