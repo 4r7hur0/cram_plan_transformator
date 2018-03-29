@@ -33,7 +33,6 @@
 (defvar *all-data-store* '())
 (defvar *perform-counter* (make-hash-table :test 'equal))
 (defvar *action-list* '())
-(defvar *deviation-table* (make-hash-table :test 'equal))
 
 (defvar *distributed-actions* (make-hash-table :test 'equal))
 (defvar *motion-cost* (make-hash-table :test 'equal))
@@ -91,6 +90,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Data evaluation & t-test ;;;
+(defvar *deviation-table* (make-hash-table :test 'equal))
+
 (defun calculate-overall-deviation (&optional (dev-table *deviation-table*))
   (loop for key being the hash-keys in dev-table
            collect (float (alexandria:mean (gethash key dev-table)))))
