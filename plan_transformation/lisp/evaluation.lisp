@@ -308,9 +308,9 @@
           (loop for i to (1- (length key-order)) do
             (setf (gethash (nth i key-order) (car table-tuple))
                   (nth i file-list)))
-          (setf (gethash :container (cadr table-tuple)) (car (reverse file-list)))
-          (setf (gethash :gripper-movement (cadr table-tuple)) (cadr (reverse file-list)))
           (setf (gethash :navigated (cadr table-tuple)) (caddr (reverse file-list)))
+          (setf (gethash :gripper-movement (cadr table-tuple)) (cadr (reverse file-list)))
+          (setf (gethash :container (cadr table-tuple)) (car (reverse file-list)))
           table-tuple)
         file-list)))
 ;;; Data export/import ;;;

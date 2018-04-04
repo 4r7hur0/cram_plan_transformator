@@ -30,8 +30,6 @@
 
 (in-package :plt)
 
-
-
 (defun test-collect-from-sink (&optional (reset t))
   (cet:enable-fluent-tracing)
   (when reset
