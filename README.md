@@ -29,7 +29,7 @@ An example usage of transforming a plan could look like this
 ;; A message will tell, which rule has been applied.
 (test-collect-from-sink NIL) ;; per default this function resets the task tree. To prevent that, add NIL as parameter.
 ```
-If you want to tweak the tranformation rules, you can add new ones, disable them or set priorities.
+If you want to tweak the transformation rules, you can add new ones, disable them or set priorities.
 ```
 ;; Register the both-hands-rule and stacking-rule with their predicates
 (register-transformation-rule both-hands-transporting-rule
