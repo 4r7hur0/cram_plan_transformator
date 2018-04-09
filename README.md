@@ -13,7 +13,7 @@ Just run it again and they will disappear.
 
 ## Usage
 
-There are three scenarios and three transformations to try out. Load the *plan_transformation* package in your REPL change your package to *plt*, the nickname. Now run *(roslisp-utilities:startup-ros)* to initialize the environment and start the simulation. This might take a moment, depending on your machine around 2 to 5 minutes.
+There are three scenarios and three transformations to try out. Load the *plan_transformation* package in your REPL and change your package to *plt*, the nickname. Now run *(roslisp-utilities:startup-ros)* to initialize the environment and start the simulation. This might take a moment, depending on your machine around 2 to 5 minutes.
 
 To test the scenarios you can call following functions, defined in  *top-level.lisp*:
 * *(test-collect-from-sink)* starts collecting 4 items from the sink area.
