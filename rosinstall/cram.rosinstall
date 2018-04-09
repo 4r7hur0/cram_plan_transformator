@@ -1,7 +1,7 @@
 - git:
     local-name: cram
-    uri: https://github.com/cram2/cram.git
-    version: master
+    uri: https://github.com/artnie/cram.git
+    version: cram6
 - git:
     local-name: pr2_kinematics
     uri: https://github.com/code-iai/pr2_kinematics.git
