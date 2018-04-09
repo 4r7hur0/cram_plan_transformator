@@ -9,7 +9,7 @@ and initialize wstool within its src directory.
 * Merge cram.rosinstall and knowrob.rosinstall into their wstool workspaces
 * First pull and catkin_make knowrob, then CRAM. Probably you will get compilation errors with knowrob on your first try.
 Just run it again and they will disappear.
-* Source those workspaces' devel/setup.bash and compile the cram_plan_transformation workspace
+* Source those workspaces' devel/setup.bash and compile the cram_plan_transformation workspace. Also source that one.
 
 ## Usage
 
