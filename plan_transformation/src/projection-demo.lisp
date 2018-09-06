@@ -54,7 +54,9 @@
     (:bowl . ((1.4 0.8 0.87) (0 0 0 1)))
     (:spoon . ((1.4 1.0 0.74132) (0 0 1 0)))
     (:fork . ((1.4 0.8 0.74132) (0 0 0.7071 0.7071)))
-    (:milk . ((1.4 0.4 0.95) (0 0 0 1)))))
+    (:milk . ((1.4 0.4 0.95) (0 0 0 1)))
+    (:tray-box . ((-0.89 1.9 0.9) (0 0 0.7 0.7))
+    )))
 
 (defparameter *object-grasping-arms*
   '((:breakfast-cereal . :left)
@@ -62,7 +64,8 @@
     (:bowl . :right)
     (:spoon . :right)
     (:spoon . :left)
-    (:milk . :right)))
+    (:milk . :right)
+    (:tray-box . (:left :right))))
 
 (defparameter *object-placing-poses*
   '((:breakfast-cereal . ((-0.78 0.9 0.95) (0.0d0 0.0d0 0.9489846229553223d0 0.3153223693370819d0)))
@@ -70,7 +73,13 @@
     (:bowl . ((-0.76 1.19 0.88) (0 0 0.7071 0.7071)))
     (:spoon . ((-0.78 1.5 0.86) (0 0 0 1)))
     (:fork . ((-0.78 1.6 0.86) (0 0 0.7071 0.7071)))
-    (:milk . ((-0.75 1.7 0.95) (0 0 1 0)))))
+    (:milk . ((-0.75 1.7 0.95) (0 0 1 0)))
+    (:tray-box . ((1.4 -0.2 0.95) (0 0 0 1)))))
+
+(defparameter *object-sink-placing-poses*
+  '((:bowl . ((1.4 0.8 0.87) (0 0 -0.7071 0.7071)))
+    (:spoon . ((1.4 0.4 0.95) (0 0 0 1)))
+    (:tray-box . ((1.4 -0.2 0.95) (0 0 0 1)))))
 
 (defparameter *tray-pose-transforms*
   '((:breakfast-cereal .  ((-0.12 0.04 0.14)(0 0 0 1))) ;;left
@@ -81,6 +90,12 @@
     ;; (:tray . ((-0.75 1.85 0.85) (0 0 1 0)))
     ))
 
+(defparameter *object-island-spawning-poses*
+  '((:bowl . ((-0.89 1.3 0.9) (0 0 1 0)))
+    (:spoon . ((-0.89 1.0 0.9) (0 0 1 0)))
+    (:tray-box . ((-0.89 1.9 0.9) (0 0 0.7 0.7))
+    )))
+
 (defun spawn-objects-on-sink-counter (&optional (spawning-poses *object-spawning-poses*))
   (btr-utils:kill-all-objects)
   (btr:add-objects-to-mesh-list "cram_pr2_pick_place_demo")
@@ -89,24 +104,51 @@
                         :milk ;; :fork
                         ;; :spoon
                         ;; :spoon
-                        ))
-        (id 0))
-    ;; spawn objects at default poses
-    (let ((objects (mapcar (lambda (object-type)
-                             (btr-utils:spawn-object
-                              (intern (format nil "~a-~a" object-type (incf id)) :keyword)
-                              object-type
-                              :pose (cdr (assoc object-type spawning-poses))))
-                           object-types)))
-      ;; stabilize world
-      (btr:simulate btr:*current-bullet-world* 100)
-      objects))
+                        :tray-box
+                        )))
+    (labels ((obj-name (type &optional (id 0))
+             (let ((name (intern (format nil "~a-~a" type id) :keyword)))
+               (if (btr:object btr:*current-bullet-world* name)
+                   (obj-name type (incf id))
+                   name))))
+               
+      (mapcar (lambda (object-type)
+                (btr-utils:spawn-object
+                 (obj-name object-type)
+                 object-type
+                 :pose (cdr (assoc object-type spawning-poses))))
+              object-types)
+      (btr:simulate btr:*current-bullet-world* 100)))
 
   (dolist (obj-name '(:spoon-1 :fork-1 :spoon-2))
     (when (btr:object btr:*current-bullet-world* obj-name)
       (btr:attach-object (btr:object btr:*current-bullet-world* :kitchen)
                          (btr:object btr:*current-bullet-world* obj-name)
                          "sink_area_left_upper_drawer_main"))))
+
+(defun spawn-objects-on-kitchen-island (&optional (spawning-poses *object-island-spawning-poses*))
+  (btr-utils:kill-all-objects)
+  (btr:add-objects-to-mesh-list "cram_pr2_pick_place_demo")
+  (btr:detach-all-objects (btr:get-robot-object))
+  (let ((object-types '(:spoon
+                        ;; :spoon
+                        ;; :bowl
+                        :bowl
+                        :tray-box
+                        )))
+    (labels ((obj-name (type &optional (id 0))
+             (let ((name (intern (format nil "~a-~a" type id) :keyword)))
+               (if (btr:object btr:*current-bullet-world* name)
+                   (obj-name type (incf id))
+                   name))))
+               
+      (mapcar (lambda (object-type)
+                (btr-utils:spawn-object
+                 (obj-name object-type)
+                 object-type
+                 :pose (cdr (assoc object-type spawning-poses))))
+              object-types)
+      (btr:simulate btr:*current-bullet-world* 100))))
 
 (defun spawn-objects-on-sink-counter-randomly ()
   (btr-utils:kill-all-objects)

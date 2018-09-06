@@ -42,7 +42,8 @@
 
 (defparameter *object-colors*
   '((:spoon . "blue")
-    (:fork . "green")))
+    (:fork . "green")
+    (:tray-box . "yellow")))
 
 (defmethod exe:generic-perform :before (designator)
   (format t "~%PERFORMING~%~A~%~%" designator))
@@ -271,51 +272,19 @@
                          (object ?object-to-fetch)
                          (arm ?arm-to-use)
                          (location ?fetching-location)
-                         (target ?delivering-location)))
-          ;; (if (eq ?object-type :bowl)
-          ;;     (exe:perform
-          ;;      (desig:an action
-          ;;                (type transporting)
-          ;;                (object ?object-to-fetch)
-          ;;                ;; (arm right)
-          ;;                (location ?fetching-location)
-          ;;                (target ?delivering-location)))
-          ;;     (if (eq ?object-type :breakfast-cereal)
-          ;;         (exe:perform
-          ;;          (desig:an action
-          ;;                    (type transporting)
-          ;;                    (object ?object-to-fetch)
-          ;;                    ;; (arm right)
-          ;;                    (location ?fetching-location)
-          ;;                    (target ?delivering-location)))
-          ;;         (exe:perform
-          ;;          (desig:an action
-          ;;                    (type transporting)
-          ;;                    (object ?object-to-fetch)
-          ;;                    ;; (arm ?arm-to-use)
-          ;;                    (location ?fetching-location)
-          ;;                    (target ?delivering-location)))))
-          )
-
-        ;; (setf pr2-proj-reasoning::*projection-reasoning-enabled* nil)
-        )))
+                         (target ?delivering-location)))) )))
 
   ;; (setf pr2-proj-reasoning::*projection-reasoning-enabled* nil)
 
   (initialize-or-finalize)
-
-  ;;(when ccl::*is-logging-enabled*
-  ;;  (ccl::export-log-to-owl "ease_milestone_2018.owl")
-  ;;  (ccl::export-belief-state-to-owl "ease_milestone_2018_belief.owl"))
-
   cpl:*current-path*)
 
 
 (cpl:def-cram-function demo-cleaning (&optional
                                       (random t)
-                                      (list-of-objects '(:cup
-                                                         :milk
-                                                         :breakfast-cereal)))
+                                      (list-of-objects '(:bowl
+                                                         :spoon
+                                                         :tray-box)))
   (btr:detach-all-objects (btr:get-robot-object))
   (btr:detach-all-objects (btr:object btr:*current-bullet-world* :kitchen))
   (btr-utils:kill-all-objects)
@@ -331,7 +300,7 @@
               'cram-pr2-projection::pr2-bullet-projection-environment)
          (if random
              (spawn-objects-on-sink-counter-randomly)
-             (spawn-objects-on-sink-counter)))
+             (spawn-objects-on-kitchen-island)))
         (t
          (json-prolog:prolog-simple "rdf_retractall(A,B,C,belief_state).")
          (btr-belief::call-giskard-environment-service :kill-all "attached")
@@ -368,16 +337,27 @@
                                              (urdf-name kitchen_island_surface)
                                              (owl-name "kitchen_sink_block_counter_top")
                                              (part-of kitchen)))
-                               (side left)
-                               (side front)
+                               (side right)
+                               (side back)
                                (range-invert 0.5)))
-            ;; (:spoon . ,(desig:a location
-            ;;                     (in (desig:an object
-            ;;                                   (type drawer)
-            ;;                                   (urdf-name sink-area-left-upper-drawer-main)
-            ;;                                   (owl-name "drawer_sinkblock_upper_open")
-            ;;                                   (part-of kitchen)))
-            ;;                     (side front)))
+            (:tray-box . ,(desig:a location
+                               (on (desig:an object
+                                             (type counter-top)
+                                             (urdf-name kitchen_island_surface)
+                                             (owl-name "kitchen_island_counter_top")
+                                             (part-of kitchen)))
+                               ;; (side right)
+                               (side back)
+                               ;; (range-invert 0.5)
+                               ))
+            (:spoon . ,(desig:a location
+                                (on (desig:an object
+                                             (type counter-top)
+                                             (urdf-name kitchen_island_surface)
+                                             (owl-name "kitchen_sink_block_counter_top")
+                                             (part-of kitchen)))
+                               (side right)
+                               (side back)))
             ;; (:fork . ,(desig:a location
             ;;                     (in (desig:an object
             ;;                                   (type drawer)
@@ -448,16 +428,13 @@
         ;;                          (for (an object (type milk))))))))
         )
 
-    ;; (an object
-    ;;     (obj-part "drawer_sinkblock_upper_handle"))
-
     (dolist (?object-type list-of-objects)
       (let* ((?fetching-location
                (cdr (assoc ?object-type object-fetching-locations)))
              (?delivering-location
                (let ((?pose (cl-tf:pose->pose-stamped
                              "map" 0.0
-                             (btr:ensure-pose (cdr (assoc ?object-type *object-placing-poses*))))))
+                             (btr:ensure-pose (cdr (assoc ?object-type *object-sink-placing-poses*))))))
                  (desig:a location
                           (pose ?pose))))
              (?arm-to-use
@@ -475,46 +452,76 @@
                          (desig:when ?color
                            (color ?color)))))
 
-        (when (eq ?object-type :bowl)
-          (cpl:with-failure-handling
-              ((common-fail:high-level-failure (e)
-                 (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping the search" e)
-                 (return)))
-            (let ((?loc (cdr (assoc :breakfast-cereal object-fetching-locations))))
-              (exe:perform
-               (desig:an action
-                         (type searching)
-                         (object (desig:an object (type breakfast-cereal)))
-                         (location ?loc))))))
+        ;; (when (eq ?object-type :bowl)
+        ;;   (cpl:with-failure-handling
+        ;;       ((common-fail:high-level-failure (e)
+        ;;          (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping the search" e)
+        ;;          (return)))
+        ;;     (let ((?loc (cdr (assoc :breakfast-cereal object-fetching-locations))))
+        ;;       (exe:perform
+        ;;        (desig:an action
+        ;;                  (type searching)
+        ;;                  (object (desig:an object (type breakfast-cereal)))
+        ;;                  (location ?loc))))))
 
         (cpl:with-failure-handling
             ((common-fail:high-level-failure (e)
                (roslisp:ros-warn (pp-plans demo) "Failure happened: ~a~%Skipping..." e)
                (return)))
-          (if (eq ?object-type :bowl)
-              (exe:perform
+          ;; (let ((?pose (cl-tf:make-pose-stamped
+          ;;                     "map" 0.0 (cl-tf:make-3d-vector -0.25 1.9 0)
+          ;;                     (cl-tf:make-quaternion 0 0 1 0))))
+                  
+          ;;         (perform (an action
+          ;;                      (type going)
+          ;;                      (target (a location
+          ;;                                 (pose ?pose))))))
+          (exe:perform
                (desig:an action
                          (type transporting)
                          (object ?object-to-fetch)
-                         ;; (arm right)
+                         (arm ?arm-to-use)
                          (location ?fetching-location)
                          (target ?delivering-location)))
-              (if (eq ?object-type :breakfast-cereal)
-                  (exe:perform
-                   (desig:an action
-                             (type transporting)
-                             (object ?object-to-fetch)
-                             ;; (arm right)
-                             (location ?fetching-location)
-                             (target ?delivering-location)))
-                  (exe:perform
-                   (desig:an action
-                             (type transporting)
-                             (object ?object-to-fetch)
-                             ;; (arm ?arm-to-use)
-                             (location ?fetching-location)
-                             (target ?delivering-location))))))
-        )))
+          ;; (if (eq ?object-type :tray-box)
+          ;;     (let ((?tray
+          ;;             (exe:perform
+          ;;              (desig:an action
+          ;;                        (type searching)
+          ;;                        (object ?object-to-fetch)
+          ;;                        ;; (arm (left right))
+          ;;                        (location ?fetching-location)
+          ;;                        (target ?delivering-location)))))
+          ;;       (let ((?pose (cl-tf:make-pose-stamped
+          ;;                     "map" 0.0 (cl-tf:make-3d-vector -0.25 1.9 0)
+          ;;                     (cl-tf:make-quaternion 0 0 1 0))))
+                  
+          ;;         (perform (an action
+          ;;                      (type going)
+          ;;                      (target (a location
+          ;;                                 (pose ?pose))))))
+          ;;       (setf ?tray
+          ;;             (perform (an action
+          ;;                          (type detecting)
+          ;;                          (object (an object
+          ;;                                      (size "large")
+          ;;                                      (color "yellow")
+          ;;                                      (location (desig:a location
+          ;;                                                         (on (desig:an object
+          ;;                                                                       (owl-name "kitchen_island_counter_top"))))))))))
+          ;;       (exe:perform
+          ;;        (desig:an action
+          ;;                  (type picking-up)
+          ;;                  (object ?tray)
+          ;;                  (arm (left right)))))
+          ;;     (exe:perform
+          ;;      (desig:an action
+          ;;                (type transporting)
+          ;;                (object ?object-to-fetch)
+          ;;                (arm ?arm-to-use)
+          ;;                (location ?fetching-location)
+          ;;                (target ?delivering-location))))
+          ))))
 
   (initialize-or-finalize)
 
