@@ -1,4 +1,4 @@
-;;;
+-;;;
 ;;; Copyright (c) 2018, Arthur Niedzwiecki <niedzwiecki@uni-bremen.de>
 ;;;                    
 ;;; All rights reserved.
@@ -78,15 +78,63 @@ but sorted in broad first, not depth first."
                       desig-class)))))
     (remove-if-not filter-predicate subtasks)))
 
-;; (defun location-desigs-nearby (desig-1 desig-2 &optional (threshold 0.4))
-;;   (let ((pos-1 (reference desig-1))
-;;         (pos-2 (reference desig-2)))
-;;     (> threshold (cl-tf:v-dist (cl-tf:origin pos-1)
-;;                                (cl-tf:origin pos-2)))))
+(defun no-replacements (task)
+  (let ((tasks (flatten-task-tree-broad task)))
+    (remove nil (mapcar #'cpl-impl::task-tree-node-code-replacements tasks))))
 
 (defun location-desig-dist (desig-1 desig-2)
   (cl-tf:v-dist (cl-tf:origin (reference desig-1))
                 (cl-tf:origin (reference desig-2))))
 
-(defun location-desig-close (desig-1 desig-2 &optional (threshold 0.5))
-  (location-desig-dist desig-1 desig-2))
+(defun location-desig-close (desig-1 desig-2 &optional (threshold 0.9))
+  (> threshold (location-desig-dist desig-1 desig-2)))
+
+(defun search-tray ()
+  (let ((tray (perform (an action
+                           (type searching)
+                           (object (an object (type :tray-box)))
+                           (location (a location
+                                        (on (desig:an object
+                                                      (type counter-top)
+                                                      (urdf-name kitchen_island_surface)
+                                                      (owl-name "kitchen_island_counter_top")
+                                                      (part-of kitchen)))
+                                        (side back)))))))
+    (when tray
+      (cram-tf:pose-stamped->transform-stamped
+       (cram-tf:ensure-pose-in-frame (obj-int:get-object-pose tray)
+                                     cram-tf:*fixed-frame* :use-zero-time t)
+       "tray_box_0"))))
+
+(defun pose-on-tray (tray-transform obj-name)
+  (let* ((frame-name (roslisp-utilities:rosify-underscores-lisp-name obj-name)))
+    (destructuring-bind
+        ((x y z) (ax ay az aw))
+        (alexandria:assoc-value *tray-pose-transforms* obj-name)
+      (cram-tf:multiply-transform-stampeds cram-tf:*fixed-frame*
+                                           frame-name
+                                           tray-transform
+                                           (cl-tf:make-transform-stamped
+                                            "tray_box_0" frame-name 0.0
+                                            (cl-tf:make-3d-vector x y z)
+                                            (cl-tf:make-quaternion ax ay az aw))
+                                           :result-as-pose-or-transform :pose))))
+
+(defun tray-transporting-action ()
+  (let ((?pose (cl-tf:pose->pose-stamped "map" 0 
+                                         (cram-tf:list->pose '((1.4 -0.2 1) (0 0 -0.7 0.7))))))
+    (setf cram-mobile-pick-place-plans::*park-arms* nil)
+    (perform (an action
+                 (type transporting)
+                 (object (an object 
+                             (type tray-box)))
+                 (location (a location
+                              (on (desig:an object
+                                            (type counter-top)
+                                            (urdf-name kitchen-island-surface)
+                                            (owl-name "kitchen_island_counter_top")
+                                            (part-of kitchen)))))
+                 (target (a location
+                            (pose ?pose)))
+                 (arm (left right))))
+    (setf cram-mobile-pick-place-plans::*park-arms* t)))

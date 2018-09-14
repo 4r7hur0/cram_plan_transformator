@@ -74,26 +74,38 @@
     (:spoon . ((-0.78 1.5 0.86) (0 0 0 1)))
     (:fork . ((-0.78 1.6 0.86) (0 0 0.7071 0.7071)))
     (:milk . ((-0.75 1.7 0.95) (0 0 1 0)))
-    (:tray-box . ((1.4 -0.2 0.95) (0 0 0 1)))))
+    (:tray-box . ((1.4 -0.2 0.95) (0 0 0.7 0.7)))))
 
 (defparameter *object-sink-placing-poses*
   '((:bowl . ((1.4 0.8 0.87) (0 0 -0.7071 0.7071)))
     (:spoon . ((1.4 0.4 0.95) (0 0 0 1)))
-    (:tray-box . ((1.4 -0.2 0.95) (0 0 0 1)))))
+    (:tray-box . ((1.4 -0.2 1) (0 0 -0.7 0.7)))))
 
 (defparameter *tray-pose-transforms*
   '((:breakfast-cereal .  ((-0.12 0.04 0.14)(0 0 0 1))) ;;left
     (:cup . ((-0.15 0.17 0.1)(0 0 0 1))) ;;left
-    (:bowl . ((-0.12 0.04 0.14)(0 0 0 1)))
-    (:spoon . ((-0.20 0.04 0.12)(0 0 0 1)))
+    (:bowl-0 . ((-0.16 0.0 0.07)(0 0 1 0)))
+    (:bowl-1 . ((0.16 0.0 0.07)(0 0 0 1)))
+    (:spoon-0 . ((-0.02 0.05 0)(0 0 -0.7071 0.7071)))
+    (:spoon-1 . ((0.02 0.05 0)(0 0 -0.7071 0.7071)))
     (:milk . ((-0.12 -0.06 0.16) (0 0 1 0))) ;;right
     ;; (:tray . ((-0.75 1.85 0.85) (0 0 1 0)))
     ))
 
 (defparameter *object-island-spawning-poses*
-  '((:bowl . ((-0.89 1.3 0.9) (0 0 1 0)))
-    (:spoon . ((-0.89 1.0 0.9) (0 0 1 0)))
-    (:tray-box . ((-0.89 1.9 0.9) (0 0 0.7 0.7))
+  '((:bowl-0 . ((-0.89 1.3 0.9) (0 0 -0.7071 0.7071)))
+    (:bowl-1 . ((-0.89 1.4 0.9) (0 0 -0.7071 0.7071)))
+    (:spoon-0 . ((-0.89 1.0 0.9) (0 0 1 0)))
+    (:spoon-1 . ((-0.89 1.1 0.9) (0 0 1 0)))
+    (:tray-box-0 . ((-0.89 1.9 0.9) (0 0 0.7 0.7))
+     )))
+
+(defparameter *object-spawning-poses-big-demo*
+  '((:bowl-0 . ((1.4 0.8 0.87) (0 0 0 1)))
+    (:spoon-0 . ((1.4 1.0 0.74132) (0 0 1 0)))
+    (:bowl-1 . ((1.4 0.6 0.87) (0 0 0 1)))
+    (:spoon-1 . ((1.4 0.9 0.74132) (0 0 1 0)))
+    (:tray-box-0 . ((-0.89 1.9 0.9) (0 0 0.7 0.7))
     )))
 
 (defun spawn-objects-on-sink-counter (&optional (spawning-poses *object-spawning-poses*))
@@ -126,13 +138,13 @@
                          (btr:object btr:*current-bullet-world* obj-name)
                          "sink_area_left_upper_drawer_main"))))
 
-(defun spawn-objects-on-kitchen-island (&optional (spawning-poses *object-island-spawning-poses*))
+(defun spawn-objects-big-demo (&optional (spawning-poses *object-spawning-poses-big-demo*))
   (btr-utils:kill-all-objects)
   (btr:add-objects-to-mesh-list "cram_pr2_pick_place_demo")
   (btr:detach-all-objects (btr:get-robot-object))
   (let ((object-types '(:spoon
-                        ;; :spoon
-                        ;; :bowl
+                        :spoon
+                        :bowl
                         :bowl
                         :tray-box
                         )))
@@ -146,7 +158,37 @@
                 (btr-utils:spawn-object
                  (obj-name object-type)
                  object-type
-                 :pose (cdr (assoc object-type spawning-poses))))
+                 :pose (cdr (assoc (obj-name object-type) spawning-poses))))
+              object-types)
+      (btr:simulate btr:*current-bullet-world* 100)))
+
+  (dolist (obj-name '(:spoon-0 :spoon-1))
+    (when (btr:object btr:*current-bullet-world* obj-name)
+      (btr:attach-object (btr:object btr:*current-bullet-world* :kitchen)
+                         (btr:object btr:*current-bullet-world* obj-name)
+                         "sink_area_left_upper_drawer_main"))))
+
+(defun spawn-objects-on-kitchen-island (&optional (spawning-poses *object-island-spawning-poses*))
+  (btr-utils:kill-all-objects)
+  (btr:add-objects-to-mesh-list "cram_pr2_pick_place_demo")
+  (btr:detach-all-objects (btr:get-robot-object))
+  (let ((object-types '(:spoon
+                        :spoon
+                        ;:bowl
+                        :bowl
+                        :tray-box
+                        )))
+    (labels ((obj-name (type &optional (id 0))
+             (let ((name (intern (format nil "~a-~a" type id) :keyword)))
+               (if (btr:object btr:*current-bullet-world* name)
+                   (obj-name type (incf id))
+                   name))))
+               
+      (mapcar (lambda (object-type)
+                (btr-utils:spawn-object
+                 (obj-name object-type)
+                 object-type
+                 :pose (cdr (assoc (obj-name object-type) spawning-poses))))
               object-types)
       (btr:simulate btr:*current-bullet-world* 100))))
 

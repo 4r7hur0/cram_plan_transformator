@@ -37,8 +37,8 @@
 ;; (register-transformation-rule environment-rule
 ;;                               '(task-transporting-from-fridge ?action ?open-path ?close-path))
 
-(defun both-hands-transporting-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
-  (roslisp:ros-info (plt) "Applying BOTH-HANDS-TRANSPORTING-RULE to top-level-plan ~a." top-level-name)
+(defun both-hands-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying BOTH-HANDS-RULE to top-level-plan ~a." top-level-name)
   (destructuring-bind
       ((key path-1) (other-key path-2 deliver-action))
       (cut:lazy-car lazy-bindings)
@@ -56,56 +56,55 @@
                                  path-2
                                  (cpl-impl::get-top-level-task-tree top-level-name))))
 
-(defun stacking-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
-  (roslisp:ros-info (plt) "Applying STACKING-RULE to top-level-plan ~a." top-level-name)
-  (let* ((tray-name :tray-1)
-         (last-deliver-path (cadar (cut:lazy-car lazy-bindings)))
-         (other-delivery-paths
-           (mapcar
-            #'cadar
-            (cut:force-ll
-             (cut:lazy-take 2 (prolog`(task-transporting-with-tray-other-deliveries
-                                       ,last-deliver-path ?o)))))))
+(defun tray-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying TRAY-RULE to top-level-plan ~a." top-level-name)
+  (let* ((paths (remove-duplicates (mapcar #'cadar (cut:force-ll (cut:lazy-take 4 lazy-bindings)))
+                                            :test #'string= :key #'write-to-string))
+         (last-path (pop paths))
+         (rest-paths (reverse paths)))
     
-    (labels ((btr-obj (name) (btr:object btr:*current-bullet-world* name))
-             (change-loc-to-tray (action-desig)
-               (let* ((obj-type
-                        (desig-prop-value (desig-prop-value action-desig :object) :type))
-                      (tray-obj (search-tray))
-                      (?new-pose
-                        (find-position-on-tray-for-item obj-type (tray-pose tray-obj)))
+
+    (labels ((change-loc-to-tray (action-desig)
+               (let* ((obj-name
+                        (desig-prop-value (desig-prop-value action-desig :object) :name))
+                      (tray-transform-stamped (search-tray))
+                      (?new-pose (pose-on-tray tray-transform-stamped obj-name))
                       (?desig-cpy (desig:description (desig:copy-designator action-desig))))
-                 (setf tray-name (desig-prop-value tray-obj :name))
+               ;; (setf tray-name (desig-prop-value tray-obj :name))
                  (setf ?desig-cpy (remove (assoc :target ?desig-cpy) ?desig-cpy))
                  (push `(:target ,(desig:a location
                                            (pose ?new-pose))) ?desig-cpy)
                  (desig:make-designator :action ?desig-cpy))))
       
-      (loop for delivery-path in other-delivery-paths
+      (loop for path in rest-paths
             counting t into index
             do (cpl-impl::replace-task-code
                 `(,(intern (format nil "TRAY-TRANSFORM-~a" index)))
                 #'(lambda (&rest desig)
                     (exe:perform (change-loc-to-tray (car desig)))
-                    (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
-                                      (btr-obj tray-name)))
-                delivery-path
+                    ;; (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
+                    ;;                   (btr-obj tray-name))
+                    )
+                path
                 (cpl-impl::get-top-level-task-tree top-level-name)))
 
       (cpl-impl::replace-task-code
        '(STACKING-TRANSFORM-LAST)
        #'(lambda (&rest desig)
            (exe:perform (change-loc-to-tray (car desig)))
-           (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
-                             (btr-obj tray-name))
+           ;; (btr::attach-item (desig-prop-value (desig-prop-value (car desig) :object) :name)
+           ;;                   (btr-obj tray-name))
            (exe:perform (tray-transporting-action))
-           (btr::detach-all-items (btr-obj tray-name)))
-       last-deliver-path
-       (cpl-impl::get-top-level-task-tree top-level-name)))))
+           ;; (btr::detach-all-items (btr-obj tray-name))
+           )
+       last-path
+       (cpl-impl::get-top-level-task-tree top-level-name))
+      )
+    ))
 
 
-(defun environment-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
-  (roslisp:ros-info (plt) "Applying ENVIRONMENT-RULE to top-level-plan ~a." top-level-name)
+(defun container-rule (lazy-bindings &optional (top-level-name (get-top-level-name)))
+  (roslisp:ros-info (plt) "Applying CONTAINER-RULE to top-level-plan ~a." top-level-name)
 
   ;; TODO
   (let ((sealing-path (cdadr (cut:lazy-car lazy-bindings)))
@@ -113,13 +112,15 @@
     (cpl-impl::replace-task-code '(SEALING-TRANSFORM)
                                  #'(lambda (&rest desig)
                                      (declare (ignore desig))
-                                     t)
+                                     (roslisp:ros-info (sealing-transform)
+                                                       "Sealing action deleted in transformation."))
                                  sealing-path
                                  (cpl-impl::get-top-level-task-tree top-level-name))
     (cpl-impl::replace-task-code '(ACCESSING-TRANSFORM)
                                  #'(lambda (&rest desig)
                                      (declare (ignore desig))
-                                     t)
+                                     (roslisp:ros-info (accessing-transform)
+                                                       "Accessing action deleted in transformation."))
                                  accessing-path
                                  (cpl-impl::get-top-level-task-tree top-level-name)))
   
