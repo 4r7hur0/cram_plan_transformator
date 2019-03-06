@@ -116,27 +116,28 @@ but sorted in broad first, not depth first."
     (remove-if-not filter-predicate subtasks)))
 
 (defun reset-scene (&optional (top-level-name nil) (random nil))
-  (btr:detach-all-objects (btr:get-robot-object))
-  (btr-utils:kill-all-objects)
-  (when (eql cram-projection:*projection-environment*
-             'cram-pr2-projection::pr2-bullet-projection-environment)
-    (if random
-        (spawn-objects-on-sink-counter-randomly)
-        (spawn-objects-on-sink-counter)))
-  (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
-  (initialize-or-finalize)
-  (let ((robot-urdf
-          (cl-urdf:parse-urdf
-           (roslisp:get-param "robot_description"))))
-    (prolog:prolog
-     `(and (btr:bullet-world ?world)
-           (cram-robot-interfaces:robot ?robot)
-           (assert (btr:object ?world :urdf ?robot ((0 0 0) (0 0 0 1)) :urdf ,robot-urdf))
-           (cram-robot-interfaces:robot-arms-parking-joint-states ?robot ?joint-states)
-           (assert (btr:joint-state ?world ?robot ?joint-states))
-           (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0)))))))
-  (when top-level-name
-    (cpl-impl::remove-top-level-task-tree top-level-name)))
+  ;; (btr:detach-all-objects (btr:get-robot-object))
+  ;; (btr-utils:kill-all-objects)
+  ;; (when (eql cram-projection:*projection-environment*
+  ;;            'cram-pr2-projection::pr2-bullet-projection-environment)
+  ;;   (if random
+  ;;       (spawn-objects-on-sink-counter-randomly)
+  ;;       (spawn-objects-on-sink-counter)))
+  ;; (setf cram-robot-pose-guassian-costmap::*orientation-samples* 1)
+  ;; (initialize-or-finalize)
+  ;; (let ((robot-urdf
+  ;;         (cl-urdf:parse-urdf
+  ;;          (roslisp:get-param "robot_description"))))
+  ;;   (prolog:prolog
+  ;;    `(and (btr:bullet-world ?world)
+  ;;          (cram-robot-interfaces:robot ?robot)
+  ;;          (assert (btr:object ?world :urdf ?robot ((0 0 0) (0 0 0 1)) :urdf ,robot-urdf))
+  ;;          (cram-robot-interfaces:robot-arms-parking-joint-states ?robot ?joint-states)
+  ;;          (assert (btr:joint-state ?world ?robot ?joint-states))
+  ;;          (assert (btr:joint-state ?world ?robot (("torso_lift_joint" 0.22d0)))))))
+  ;; (when top-level-name
+  ;;   (cpl-impl::remove-top-level-task-tree top-level-name))
+  )
 
 (defun tray-transporting-action ()
   (let* ((?tray-obj (desig:an object

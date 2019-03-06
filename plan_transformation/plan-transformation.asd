@@ -52,7 +52,7 @@
                
 
                cram-knowrob-pick-place
-               cram-robosherlock
+               ;; cram-robosherlock
 
                cram-physics-utils ; for reading "package://" paths
                cl-bullet ; for handling BOUNDING-BOX datastructures
@@ -60,7 +60,7 @@
                cram-bullet-reasoning
                cram-bullet-reasoning-belief-state
                cram-bullet-reasoning-utilities
-               cram-bullet-reasoning-designators
+               ;; cram-bullet-reasoning-designators
 
                cram-semantic-map-costmap
                ; cram-bullet-reasoning-costmap ; not using any spatial relation cms yet

@@ -303,14 +303,25 @@
   ;;; Transformation utils ;;;
   (<- (task-location-description-equal ?task ?sibling)
     ;; (not (== ?task ?sibling))
-    (task-parameter ?task ?desig)
-    (task-parameter ?sibling ?sibling-desig)
-    (lisp-type ?desig desig:action-designator)
-    (desig:desig-prop ?desig (:location ?loc))
-    (lisp-fun desig:description ?loc ?loc-desc)
-    (desig:desig-prop ?sibling-desig (:location ?sibling-loc))
-    (lisp-fun desig:description ?sibling-loc ?sibling-loc-desc)
-    (equal ?loc-desc ?sibling-loc-desc))
+    (task-parameter ?task ?desig1)
+    (task-parameter ?sibling ?desig2)
+    (lisp-type ?desig1 desig:action-designator)
+    (lisp-type ?desig2 desig:action-designator)
+    (desig:desig-prop ?desig1 (:location ?loc1))
+    (desig:desig-prop ?desig2 (:location ?loc2))
+    
+    (or (and
+         (desig:desig-prop ?loc1 (:on ?on1))
+         (desig:desig-prop ?on1 (:urdf-name ?urdf-name1))
+         (desig:desig-prop ?loc2 (:on ?on2))
+         (desig:desig-prop ?on2 (:urdf-name ?urdf-name2))
+         (equal ?urdf-name1 ?urdf-name2))
+        (and
+         (desig:desig-prop ?loc1 (:in ?in1))
+         (desig:desig-prop ?in1 (:urdf-name ?urdf-name1))
+         (desig:desig-prop ?loc2 (:in ?in2))
+         (desig:desig-prop ?in2 (:urdf-name ?urdf-name2))
+         (equal ?urdf-name1 ?urdf-name2))))
 
   (<- (task-nearby ?task ?sibling ?threshold ?location-key)
     (task-parameter ?task ?desig)
